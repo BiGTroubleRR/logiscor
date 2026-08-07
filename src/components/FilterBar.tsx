@@ -6,8 +6,20 @@ import { formatTag } from '@/lib/format';
 import { companiesToCsv, downloadCsv } from '@/lib/csv';
 
 export default function FilterBar() {
-  const { filters, setFilters, clearFilters, typeOptions, countryOptions, regionOptions, capabilityOptions, duplicateCount, route, filtered, addCompany } =
-    useCrm();
+  const {
+    filters,
+    setFilters,
+    clearFilters,
+    typeOptions,
+    countryOptions,
+    regionOptions,
+    capabilityOptions,
+    trailerTypeOptions,
+    duplicateCount,
+    route,
+    filtered,
+    addCompany,
+  } = useCrm();
 
   const emailAddrs = Array.from(new Set(filtered.map((c) => c.email).filter(Boolean)));
   const emailHref = emailAddrs.length ? 'mailto:' + emailAddrs.map(encodeURIComponent).join(',') : undefined;
@@ -69,11 +81,11 @@ export default function FilterBar() {
         ))}
       </select>
 
-      <select value={filters.mulda} onChange={(e) => setFilters({ mulda: e.target.value })} style={lightSelectStyle}>
-        <option value="all">MULDA: all</option>
-        {['YES', 'Most likely', 'No', 'Does not state'].map((v) => (
-          <option key={v} value={v}>
-            {v}
+      <select value={filters.trailerType} onChange={(e) => setFilters({ trailerType: e.target.value })} style={lightSelectStyle}>
+        <option value="all">All trailer types</option>
+        {trailerTypeOptions.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>

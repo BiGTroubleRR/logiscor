@@ -2,8 +2,8 @@
 
 import { useCrm } from '@/contexts/CrmContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
-import { activityTypeColor, formatDate, formatTag, muldaStyle, tierColor } from '@/lib/format';
-import type { ActivityType, CompanyType, MuldaPresence } from '@/types/company';
+import { activityTypeColor, formatDate, formatTag, tierColor } from '@/lib/format';
+import type { ActivityType, CompanyType } from '@/types/company';
 
 export default function CompanyDrawer() {
   const {
@@ -38,7 +38,6 @@ export default function CompanyDrawer() {
 
   const isManager = identity?.role === 'manager';
   const tier = tierColor(draft.strength || null);
-  const mulda = muldaStyle(selected.mulda_presence);
 
   const scoreHint =
     selected.strength_score != null
@@ -173,14 +172,11 @@ export default function CompanyDrawer() {
                   <Field label="Phone" value={selected.phone || '—'} />
                   <Field label="Email" value={selected.email || '—'} span2 />
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  {selected.pending_review && (
+                {selected.pending_review && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     <span style={{ background: '#fef2f2', color: '#b91c1c', fontSize: 11, padding: '3px 8px', borderRadius: 999, fontWeight: 600 }}>Pending review</span>
-                  )}
-                  <span style={{ background: mulda.bg, color: mulda.fg, fontSize: 11, padding: '3px 8px', borderRadius: 999, fontWeight: 600 }}>
-                    MULDA: {selected.mulda_presence || 'Does not state'}
-                  </span>
-                </div>
+                  </div>
+                )}
                 <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginTop: 12 }}>{selected.description}</p>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
                   Source: {selected.source} ·{' '}
@@ -216,15 +212,6 @@ export default function CompanyDrawer() {
                     <LabeledInput label="Phone" value={editDraft.phone} onChange={(v) => setEditField('phone', v)} />
                   </div>
                   <LabeledInput label="Email" value={editDraft.email} onChange={(v) => setEditField('email', v)} />
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>MULDA presence</span>
-                    <select value={editDraft.mulda_presence} onChange={(e) => setEditField('mulda_presence', e.target.value as MuldaPresence)} style={editInputStyle}>
-                      <option value="YES">YES</option>
-                      <option value="Most likely">Most likely</option>
-                      <option value="No">No</option>
-                      <option value="Does not state">Does not state</option>
-                    </select>
-                  </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155' }}>
                     <input type="checkbox" checked={editDraft.pending_review} onChange={() => setEditField('pending_review', !editDraft.pending_review)} />
                     Pending review

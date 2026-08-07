@@ -73,7 +73,6 @@ export type NewCompanyInput = Pick<
   | 'website'
   | 'phone'
   | 'email'
-  | 'mulda_presence'
   | 'pending_review'
   | 'description'
 >;

@@ -1,4 +1,4 @@
-import type { MuldaPresence, ActivityType } from '@/types/company';
+import type { ActivityType } from '@/types/company';
 
 export function formatTag(t: string): string {
   return String(t)
@@ -29,13 +29,6 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function typeColor(type: string): string {
   return TYPE_COLORS[type] ?? '#64748b';
-}
-
-export function muldaStyle(v: MuldaPresence | string | null | undefined): { bg: string; fg: string } {
-  if (v === 'YES') return { bg: '#dcfce7', fg: '#166534' };
-  if (v === 'Most likely') return { bg: '#fef3c7', fg: '#92400e' };
-  if (v === 'No') return { bg: '#f1f5f9', fg: '#475569' };
-  return { bg: '#f8fafc', fg: '#94a3b8' };
 }
 
 const ACTIVITY_TYPE_COLORS: Record<ActivityType, string> = {

@@ -11,7 +11,6 @@ const COLUMNS = [
   'capability_tags',
   'trailer_types',
   'strength_score',
-  'mulda_presence',
   'pending_review',
   'website',
   'email',

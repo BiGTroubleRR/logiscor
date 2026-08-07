@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
-import { formatTag, getDisplayScore, muldaStyle, tierColor, typeColor } from '@/lib/format';
+import { formatTag, getDisplayScore, tierColor, typeColor } from '@/lib/format';
 import type { CompanyView } from '@/types/company';
 
 const thStyle: CSSProperties = {
@@ -36,9 +36,10 @@ function Row({ c }: { c: CompanyView }) {
   const { openDrawer, dismissDuplicate, deleteCompanyAction } = useCrm();
   const score = getDisplayScore(c);
   const tier = tierColor(score);
-  const mulda = muldaStyle(c.mulda_presence);
   const visibleTags = c.capability_tags.slice(0, 2);
   const extraCount = c.capability_tags.length - 2;
+  const visibleTrailerTypes = c.trailer_types.slice(0, 2);
+  const extraTrailerTypeCount = c.trailer_types.length - 2;
 
   const rowStyle: CSSProperties = c.isDuplicate
     ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }
@@ -112,9 +113,20 @@ function Row({ c }: { c: CompanyView }) {
       </td>
       <td style={{ ...td, textAlign: 'center', color: '#334155', fontWeight: 600 }}>{c.route_score ?? '—'}</td>
       <td style={td}>
-        <span style={{ background: mulda.bg, color: mulda.fg, fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
-          {c.mulda_presence || 'Does not state'}
-        </span>
+        {c.trailer_types.length === 0 ? (
+          <span style={{ color: '#cbd5e1' }}>—</span>
+        ) : (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {visibleTrailerTypes.map((t) => (
+              <span key={t} style={{ background: '#f1f5f9', color: '#334155', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>
+                {t}
+              </span>
+            ))}
+            {extraTrailerTypeCount > 0 && (
+              <span style={{ background: '#f1f5f9', color: '#94a3b8', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>+{extraTrailerTypeCount}</span>
+            )}
+          </div>
+        )}
       </td>
       <td style={{ ...td, textAlign: 'right', color: '#64748b' }}>{c.distance_km != null ? `${c.distance_km} km` : '—'}</td>
       <td style={{ ...td, textAlign: 'right' }}>
@@ -149,7 +161,7 @@ export default function CompanyTable() {
               <th style={thStyleNoSort}>Capabilities</th>
               <SortHeader label="Strength" sortKey="strength_score" />
               <SortHeader label="Route Score" sortKey="route_score" />
-              <th style={thStyleNoSort}>MULDA</th>
+              <th style={thStyleNoSort}>Trailer Types</th>
               <SortHeader label="Distance" sortKey="distance_km" />
               <th style={thStyleRight} />
             </tr>

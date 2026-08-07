@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
 import { listCompanies, insertCompany, updateCompanyDetails, deleteCompany } from '@/lib/supabase/companies';
-import type { CompanyType, MuldaPresence } from '@/types/company';
+import type { CompanyType } from '@/types/company';
 
 function errorResponse(e: unknown) {
   if (e instanceof MissingServiceRoleKeyError) {
@@ -43,7 +43,6 @@ export async function POST() {
       website: '',
       phone: '',
       email: '',
-      mulda_presence: 'Does not state',
       pending_review: true,
       description: '',
     });
@@ -64,7 +63,6 @@ type DetailsPatch = {
   website: string;
   phone: string;
   email: string;
-  mulda_presence: MuldaPresence;
   pending_review: boolean;
   description: string;
 };

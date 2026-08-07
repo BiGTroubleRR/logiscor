@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Company, CompanyView, ActivityLogEntry, ActivityType, MuldaPresence, CompanyType, NewCompanyInput } from '@/types/company';
+import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType, NewCompanyInput } from '@/types/company';
 import type { Identity } from '@/lib/role';
 import { spreadOverlappingCoords } from '@/lib/geo';
 import { computeDuplicateFlags } from '@/lib/duplicates';
@@ -16,7 +16,7 @@ export type FilterState = {
   country: string;
   region: string;
   capability: string;
-  mulda: string;
+  trailerType: string;
   pendingOnly: boolean;
   duplicatesOnly: boolean;
   minStrength: number;
@@ -28,7 +28,7 @@ const DEFAULT_FILTERS: FilterState = {
   country: 'all',
   region: 'all',
   capability: 'all',
-  mulda: 'all',
+  trailerType: 'all',
   pendingOnly: false,
   duplicatesOnly: false,
   minStrength: 0,
@@ -79,7 +79,6 @@ export type EditDraft = {
   website: string;
   phone: string;
   email: string;
-  mulda_presence: MuldaPresence;
   pending_review: boolean;
   description: string;
 };
@@ -113,6 +112,7 @@ type CrmContextValue = {
   countryOptions: { value: string; label: string }[];
   regionOptions: { value: string; label: string }[];
   capabilityOptions: { value: string; label: string }[];
+  trailerTypeOptions: { value: string; label: string }[];
   allCapabilities: string[];
   allTrailerTypes: string[];
   duplicateCount: number;
@@ -248,6 +248,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [companies],
   );
   const capabilityOptions = useMemo(() => allCapabilities.map((t) => ({ value: t, label: t })), [allCapabilities]);
+  const trailerTypeOptions = useMemo(() => allTrailerTypes.map((t) => ({ value: t, label: t })), [allTrailerTypes]);
 
   const filtered = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -257,7 +258,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.country === 'all' || c.country === filters.country) &&
         (filters.region === 'all' || c.region === filters.region) &&
         (filters.capability === 'all' || c.capability_tags.includes(filters.capability)) &&
-        (filters.mulda === 'all' || c.mulda_presence === filters.mulda) &&
+        (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
         (!filters.pendingOnly || c.pending_review) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (!route.active || c.routeMatch) &&
@@ -521,7 +522,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       website: selected.website,
       phone: selected.phone,
       email: selected.email,
-      mulda_presence: selected.mulda_presence,
       pending_review: selected.pending_review,
       description: selected.description,
     });
@@ -560,7 +560,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       website: editDraft.website,
       phone: editDraft.phone,
       email: editDraft.email,
-      mulda_presence: editDraft.mulda_presence,
       pending_review: editDraft.pending_review,
       description: editDraft.description,
     };
@@ -600,7 +599,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       website: created.website,
       phone: created.phone,
       email: created.email,
-      mulda_presence: created.mulda_presence,
       pending_review: created.pending_review,
       description: created.description,
     });
@@ -653,6 +651,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     countryOptions,
     regionOptions,
     capabilityOptions,
+    trailerTypeOptions,
     allCapabilities,
     allTrailerTypes,
     duplicateCount,
