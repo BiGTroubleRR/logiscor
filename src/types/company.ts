@@ -18,6 +18,7 @@ export type Company = {
   industries: string;
   lanes: string;
   capability_tags: string[];
+  trailer_types: string[];
   mulda_presence: MuldaPresence;
   distance_km: number | null;
   distance_anchor: string;

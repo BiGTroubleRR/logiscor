@@ -10,6 +10,7 @@ type CompanyRow = {
   industries: string;
   lanes: string;
   capability_tags: string[];
+  trailer_types: string[];
   mulda_presence: string;
   distance_km: number | null;
   distance_anchor: string;

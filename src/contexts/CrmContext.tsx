@@ -8,6 +8,7 @@ import { computeDuplicateFlags } from '@/lib/duplicates';
 import { getDisplayScore } from '@/lib/format';
 import { scoreCompanyAgainstRoute, type RouteScoreResult } from '@/lib/route-score';
 import type { LatLng } from '@/lib/geo';
+import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import * as api from '@/lib/api-client';
 
 export type FilterState = {
@@ -87,6 +88,7 @@ export type DrawerDraft = {
   strength: number;
   rationale: string;
   tagChoice: string;
+  trailerTypeChoice: string;
   activityType: ActivityType;
   activityNote: string;
 };
@@ -112,6 +114,7 @@ type CrmContextValue = {
   regionOptions: { value: string; label: string }[];
   capabilityOptions: { value: string; label: string }[];
   allCapabilities: string[];
+  allTrailerTypes: string[];
   duplicateCount: number;
 
   route: RouteState;
@@ -133,6 +136,8 @@ type CrmContextValue = {
   saveStrength: () => Promise<void>;
   addTag: () => Promise<void>;
   removeTag: (tag: string) => Promise<void>;
+  addTrailerType: () => Promise<void>;
+  removeTrailerType: (type: string) => Promise<void>;
   addActivity: () => Promise<void>;
 
   editingDetails: boolean;
@@ -145,7 +150,6 @@ type CrmContextValue = {
 
   addCompany: () => Promise<void>;
   deleteCompanyAction: (id: string) => Promise<void>;
-  approveCompany: (id: string) => Promise<void>;
   dismissDuplicate: (id: string) => Promise<void>;
   restoreDuplicate: (id: string) => Promise<void>;
 
@@ -170,7 +174,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
-  const [draft, setDraftState] = useState<DrawerDraft>({ strength: 0, rationale: '', tagChoice: '', activityType: 'Call', activityNote: '' });
+  const [draft, setDraftState] = useState<DrawerDraft>({
+    strength: 0,
+    rationale: '',
+    tagChoice: '',
+    trailerTypeChoice: '',
+    activityType: 'Call',
+    activityNote: '',
+  });
 
   const [editingDetails, setEditingDetails] = useState(false);
   const [editDraft, setEditDraftState] = useState<EditDraft | null>(null);
@@ -214,6 +225,13 @@ export function CrmProvider({ children }: { children: ReactNode }) {
 
   const allCapabilities = useMemo(
     () => Array.from(new Set(companies.flatMap((c) => c.capability_tags))).sort(),
+    [companies],
+  );
+
+  // Union of the preset list and whatever's actually in use — see src/lib/trailer-types.ts for
+  // why a plain "derive from data" approach (like allCapabilities above) doesn't work here.
+  const allTrailerTypes = useMemo(
+    () => Array.from(new Set([...PRESET_TRAILER_TYPES, ...companies.flatMap((c) => c.trailer_types)])).sort(),
     [companies],
   );
 
@@ -407,7 +425,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setEditingDetails(false);
       setEditDraftState(null);
       setEditError('');
-      setDraftState({ strength: c.strength_score ?? c.route_score ?? 0, rationale: c.strength_rationale, tagChoice: '', activityType: 'Call', activityNote: '' });
+      setDraftState({
+        strength: c.strength_score ?? c.route_score ?? 0,
+        rationale: c.strength_rationale,
+        tagChoice: '',
+        trailerTypeChoice: '',
+        activityType: 'Call',
+        activityNote: '',
+      });
       setActivityLoading(true);
       api
         .fetchActivityLog(id)
@@ -446,6 +471,26 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       if (!selectedId || !selected) return;
       const tags = selected.capability_tags.filter((t) => t !== tag);
       const updated = await runMutation(() => api.saveCapabilityTags(selectedId, tags));
+      if (updated) patchCompanyLocal(updated);
+    },
+    [selectedId, selected, runMutation],
+  );
+
+  const addTrailerType = useCallback(async () => {
+    if (!selectedId || !draft.trailerTypeChoice || !selected) return;
+    const types = [...selected.trailer_types, draft.trailerTypeChoice];
+    const updated = await runMutation(() => api.saveTrailerTypes(selectedId, types));
+    if (updated) {
+      patchCompanyLocal(updated);
+      setDraftState((d) => ({ ...d, trailerTypeChoice: '' }));
+    }
+  }, [selectedId, draft.trailerTypeChoice, selected, runMutation]);
+
+  const removeTrailerType = useCallback(
+    async (type: string) => {
+      if (!selectedId || !selected) return;
+      const types = selected.trailer_types.filter((t) => t !== type);
+      const updated = await runMutation(() => api.saveTrailerTypes(selectedId, types));
       if (updated) patchCompanyLocal(updated);
     },
     [selectedId, selected, runMutation],
@@ -574,14 +619,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [rawCompanies, runMutation, selectedId, closeDrawer],
   );
 
-  const approveCompany = useCallback(
-    async (id: string) => {
-      const updated = await runMutation(() => api.setPendingReviewApi(id, false));
-      if (updated) patchCompanyLocal(updated);
-    },
-    [runMutation],
-  );
-
   const dismissDuplicate = useCallback(
     async (id: string) => {
       const updated = await runMutation(() => api.setDuplicateDismissedApi(id, true));
@@ -617,6 +654,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     regionOptions,
     capabilityOptions,
     allCapabilities,
+    allTrailerTypes,
     duplicateCount,
     route,
     setRouteField,
@@ -635,6 +673,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     saveStrength,
     addTag,
     removeTag,
+    addTrailerType,
+    removeTrailerType,
     addActivity,
     editingDetails,
     editDraft,
@@ -645,7 +685,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     saveEditDetails,
     addCompany,
     deleteCompanyAction,
-    approveCompany,
     dismissDuplicate,
     restoreDuplicate,
     mutationError,

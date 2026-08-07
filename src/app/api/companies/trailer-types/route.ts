@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
-import { setPendingReview } from '@/lib/supabase/companies';
+import { updateTrailerTypes } from '@/lib/supabase/companies';
 
 export async function PATCH(request: Request) {
   const identity = await getIdentity();
   if (!identity) return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
 
-  const body = (await request.json().catch(() => null)) as { id?: string; pending?: boolean } | null;
-  if (!body?.id || typeof body.pending !== 'boolean') {
-    return NextResponse.json({ error: 'Expected "id" and boolean "pending".' }, { status: 400 });
+  const body = (await request.json().catch(() => null)) as { id?: string; types?: string[] } | null;
+  if (!body?.id || !Array.isArray(body.types)) {
+    return NextResponse.json({ error: 'Expected "id" and "types" array.' }, { status: 400 });
   }
 
   try {
-    const company = await setPendingReview(body.id, body.pending);
+    const company = await updateTrailerTypes(body.id, body.types);
     return NextResponse.json({ company });
   } catch (e) {
     if (e instanceof MissingServiceRoleKeyError) {

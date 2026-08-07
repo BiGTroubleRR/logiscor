@@ -60,11 +60,11 @@ export async function saveCapabilityTags(id: string, tags: string[]): Promise<Co
   return unwrap<Company>(res, 'company');
 }
 
-export async function setPendingReviewApi(id: string, pending: boolean): Promise<Company> {
-  const res = await fetch('/api/companies/pending', {
+export async function saveTrailerTypes(id: string, types: string[]): Promise<Company> {
+  const res = await fetch('/api/companies/trailer-types', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, pending }),
+    body: JSON.stringify({ id, types }),
   });
   return unwrap<Company>(res, 'company');
 }

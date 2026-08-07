@@ -33,7 +33,7 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
 }
 
 function Row({ c }: { c: CompanyView }) {
-  const { openDrawer, approveCompany, dismissDuplicate, deleteCompanyAction } = useCrm();
+  const { openDrawer, dismissDuplicate, deleteCompanyAction } = useCrm();
   const score = getDisplayScore(c);
   const tier = tierColor(score);
   const mulda = muldaStyle(c.mulda_presence);
@@ -47,7 +47,29 @@ function Row({ c }: { c: CompanyView }) {
   return (
     <tr onClick={() => openDrawer(c.id)} style={rowStyle}>
       <td style={td}>
-        <div style={{ fontWeight: 600, color: '#0f172a' }}>{c.name}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 600, color: '#0f172a' }}>{c.name}</div>
+          {c.isDuplicate && (
+            <>
+              <span
+                title={`Possibly same as: ${c.duplicateMatches.map((m) => m.name).join(', ')}`}
+                style={{ background: '#fee2e2', color: '#991b1b', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}
+              >
+                DUP?
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismissDuplicate(c.id);
+                }}
+                title="Not a duplicate — dismiss"
+                style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 10, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+              >
+                dismiss
+              </button>
+            </>
+          )}
+        </div>
       </td>
       <td style={td}>
         <span
@@ -94,49 +116,6 @@ function Row({ c }: { c: CompanyView }) {
           {c.mulda_presence || 'Does not state'}
         </span>
       </td>
-      <td style={td}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          {c.pending_review ? (
-            <>
-              <span style={{ background: '#fef3c7', color: '#92400e', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
-                PENDING
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  approveCompany(c.id);
-                }}
-                title="Approve"
-                style={{ border: 'none', background: '#dcfce7', color: '#166534', fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
-              >
-                ✓ Approve
-              </button>
-            </>
-          ) : (
-            <span style={{ color: '#cbd5e1' }}>—</span>
-          )}
-          {c.isDuplicate && (
-            <>
-              <span
-                title={`Possibly same as: ${c.duplicateMatches.map((m) => m.name).join(', ')}`}
-                style={{ background: '#fee2e2', color: '#991b1b', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}
-              >
-                DUP?
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  dismissDuplicate(c.id);
-                }}
-                title="Not a duplicate — dismiss"
-                style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 10, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
-              >
-                dismiss
-              </button>
-            </>
-          )}
-        </div>
-      </td>
       <td style={{ ...td, textAlign: 'right', color: '#64748b' }}>{c.distance_km != null ? `${c.distance_km} km` : '—'}</td>
       <td style={{ ...td, textAlign: 'right' }}>
         <button
@@ -171,7 +150,6 @@ export default function CompanyTable() {
               <SortHeader label="Strength" sortKey="strength_score" />
               <SortHeader label="Route Score" sortKey="route_score" />
               <th style={thStyleNoSort}>MULDA</th>
-              <th style={thStyleNoSort}>Pending</th>
               <SortHeader label="Distance" sortKey="distance_km" />
               <th style={thStyleRight} />
             </tr>

@@ -59,6 +59,11 @@ create table if not exists public.companies (
   -- mentioning "industries/lanes"), then freely added/removed per company afterward.
   capability_tags text[] not null default '{}',
 
+  -- Which trailer types this carrier can run (Flatbed, Reefer, Curtainside, ...). Unlike
+  -- capability_tags this has no seed data at all — src/lib/trailer-types.ts ships a preset
+  -- list as a starting point, unioned with whatever's actually in use across companies.
+  trailer_types text[] not null default '{}',
+
   mulda_presence text not null default 'Does not state'
     check (mulda_presence in ('YES', 'Most likely', 'No', 'Does not state')),
 

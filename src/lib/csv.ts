@@ -9,6 +9,7 @@ const COLUMNS = [
   'lat',
   'lng',
   'capability_tags',
+  'trailer_types',
   'strength_score',
   'mulda_presence',
   'pending_review',
@@ -28,6 +29,7 @@ export function companiesToCsv(companies: Company[]): string {
   const rows = companies.map((c) =>
     COLUMNS.map((key) => {
       if (key === 'capability_tags') return escapeCsvField(c.capability_tags.join('; '));
+      if (key === 'trailer_types') return escapeCsvField(c.trailer_types.join('; '));
       return escapeCsvField(c[key]);
     }).join(','),
   );

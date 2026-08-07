@@ -26,6 +26,9 @@ export default function CompanyDrawer() {
     allCapabilities,
     addTag,
     removeTag,
+    allTrailerTypes,
+    addTrailerType,
+    removeTrailerType,
     activityLog,
     activityLoading,
     addActivity,
@@ -45,6 +48,7 @@ export default function CompanyDrawer() {
         : 'Not yet scored — run a route search, or set a manual score below.';
 
   const availableTagChoices = allCapabilities.filter((t) => !selected.capability_tags.includes(t));
+  const availableTrailerTypeChoices = allTrailerTypes.filter((t) => !selected.trailer_types.includes(t));
 
   return (
     <>
@@ -245,6 +249,39 @@ export default function CompanyDrawer() {
                 </div>
               )
             )}
+          </div>
+
+          {/* Trailer Types — lives right after Details/MULDA, per how staff actually look this up */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Trailer Types</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {selected.trailer_types.map((type) => (
+                <span key={type} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {type}
+                  <button onClick={() => removeTrailerType(type)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                    ✕
+                  </button>
+                </span>
+              ))}
+              {selected.trailer_types.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>None on file.</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+              <select
+                value={draft.trailerTypeChoice}
+                onChange={(e) => setDraft({ trailerTypeChoice: e.target.value })}
+                style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
+              >
+                <option value="">Add trailer type...</option>
+                {availableTrailerTypeChoices.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <button onClick={addTrailerType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                Add
+              </button>
+            </div>
           </div>
 
           {/* Capability Tags */}

@@ -21,6 +21,7 @@ export async function insertCompany(input: NewCompanyInput & { id: string }): Pr
       industries: '',
       lanes: '',
       capability_tags: [],
+      trailer_types: [],
       distance_km: null,
       distance_anchor: '',
       source: 'Manual entry',
@@ -57,11 +58,11 @@ export async function updateCapabilityTags(id: string, tags: string[]): Promise<
   return data as unknown as Company;
 }
 
-export async function setPendingReview(id: string, pending: boolean): Promise<Company> {
+export async function updateTrailerTypes(id: string, types: string[]): Promise<Company> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('companies')
-    .update({ pending_review: pending })
+    .update({ trailer_types: types })
     .eq('id', id)
     .select('*')
     .single();
