@@ -134,8 +134,6 @@ function Row({ c }: { c: CompanyView }) {
             {c.distance_to_origin_km != null && <div>{c.distance_to_origin_km} km from origin</div>}
             {c.distance_to_dest_km != null && <div>{c.distance_to_dest_km} km from dest.</div>}
           </div>
-        ) : c.distance_km != null ? (
-          `${c.distance_km} km`
         ) : (
           '—'
         )}

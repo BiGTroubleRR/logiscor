@@ -48,8 +48,9 @@ function toCompanyRow(r) {
     // from `industries` only, not `lanes`, despite the README mentioning "industries/lanes".
     capability_tags: industries ? industries.split(';').map((t) => t.trim()).filter(Boolean) : [],
     mulda_presence: VALID_MULDA.has(r.mulda_presence) ? r.mulda_presence : 'Does not state',
-    distance_km: r.distance_km ?? null,
-    distance_anchor: r.distance_anchor ?? '',
+    // Dropped: the "nearest anchor" distance from the source data isn't useful, so never carry it over.
+    distance_km: null,
+    distance_anchor: '',
     description: r.description ?? '',
     website: r.website ?? '',
     email: r.email ?? '',

@@ -173,7 +173,6 @@ export default function CompanyDrawer() {
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
                   <Field label="Region" value={selected.region || 'Not recorded'} />
-                  <Field label="Nearest anchor" value={selected.distance_anchor ? `${selected.distance_km ?? '?'} km to ${selected.distance_anchor}` : 'Not recorded'} />
                   <Field label="Coordinates" value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
                   <Field label="Last updated" value={formatDate(selected.updated_at)} />
                   <Field label="Website" value={selected.website || '—'} />
