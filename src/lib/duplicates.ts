@@ -24,6 +24,28 @@ export function normalizeDomain(website: string | null | undefined): string {
     .split('?')[0];
 }
 
+const HUB_SUFFIX = /\s+HUB\s+(\d+)$/i;
+
+// Strips a trailing " HUB N" suffix so repeated duplication (HUB 2, HUB 3, ...) keeps
+// numbering off the same base name instead of stacking suffixes.
+function baseCompanyName(name: string): string {
+  return name.replace(HUB_SUFFIX, '').trim();
+}
+
+// The original company is implicitly "HUB 1" — the first duplicate becomes "HUB 2", the
+// next "HUB 3", and so on, based on the highest existing HUB number for that base name.
+export function nextHubName(name: string, allNames: string[]): string {
+  const base = baseCompanyName(name);
+  let maxHub = 1;
+  allNames.forEach((n) => {
+    if (baseCompanyName(n) !== base) return;
+    const match = n.match(HUB_SUFFIX);
+    const num = match ? parseInt(match[1], 10) : 1;
+    if (num > maxHub) maxHub = num;
+  });
+  return `${base} HUB ${maxHub + 1}`;
+}
+
 export type DuplicateFlags = {
   hasDuplicateMatch: boolean;
   isDuplicate: boolean;

@@ -59,6 +59,10 @@ export type CompanyView = Company & {
   route_distance_km: number | null;
   routeMatch: boolean;
   route_cargo_match: boolean;
+  // Straight-line distance to the searched route's endpoints — recomputed on every route
+  // search, unlike distance_km/distance_anchor which is a fixed value seeded per company.
+  distance_to_origin_km: number | null;
+  distance_to_dest_km: number | null;
 };
 
 export type NewCompanyInput = Pick<

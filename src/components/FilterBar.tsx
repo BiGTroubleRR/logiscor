@@ -4,6 +4,7 @@ import { useCrm } from '@/contexts/CrmContext';
 import { lightSelectStyle, linkButtonStyle, outlineButtonStyle, primaryButtonStyle } from '@/lib/styles';
 import { formatTag } from '@/lib/format';
 import { companiesToCsv, downloadCsv } from '@/lib/csv';
+import ImportCompaniesButton from './ImportCompaniesButton';
 
 export default function FilterBar() {
   const {
@@ -140,6 +141,7 @@ export default function FilterBar() {
       >
         ⬇ Export CSV
       </button>
+      <ImportCompaniesButton />
       <button onClick={addCompany} style={primaryButtonStyle}>
         + Add Company
       </button>

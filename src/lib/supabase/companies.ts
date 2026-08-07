@@ -4,6 +4,7 @@
 // src/app/api/companies/.
 import { createAdminClient } from './admin-server';
 import type { Company, ActivityLogEntry, NewCompanyInput, ActivityType } from '@/types/company';
+import type { ImportedCompanyRow } from '@/lib/company-import';
 
 export async function listCompanies(): Promise<Company[]> {
   const supabase = createAdminClient();
@@ -26,6 +27,76 @@ export async function insertCompany(input: NewCompanyInput & { id: string }): Pr
       distance_anchor: '',
       source: 'Manual entry',
       source_url: '',
+      strength_score: null,
+      strength_rationale: '',
+      duplicate_dismissed: false,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+// Bulk import path (src/app/api/companies/import/route.ts). A single multi-row insert rather
+// than N single-row calls — one round trip, and one partial-failure surface instead of N.
+export async function insertCompaniesBatch(rows: ImportedCompanyRow[], source: string): Promise<Company[]> {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('companies')
+    .insert(
+      rows.map((row) => ({
+        ...row,
+        id: crypto.randomUUID(),
+        industries: '',
+        lanes: '',
+        distance_km: null,
+        distance_anchor: '',
+        source,
+        source_url: '',
+        strength_score: null,
+        strength_rationale: '',
+        duplicate_dismissed: false,
+        mulda_presence: 'Does not state' as const,
+        created_at: now,
+        updated_at: now,
+      })),
+    )
+    .select('*');
+  if (error) throw error;
+  return (data ?? []) as unknown as Company[];
+}
+
+// Copies every substantive field from `original` under a new name (see nextHubName in
+// duplicates.ts) — score/rationale and the duplicate-dismissed flag reset, since those are
+// judgements about the specific row, not the underlying company data.
+export async function duplicateCompany(original: Company, newName: string): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('companies')
+    .insert({
+      id: crypto.randomUUID(),
+      name: newName,
+      type: original.type,
+      country: original.country,
+      region: original.region,
+      city: original.city,
+      lat: original.lat,
+      lng: original.lng,
+      industries: original.industries,
+      lanes: original.lanes,
+      capability_tags: original.capability_tags,
+      trailer_types: original.trailer_types,
+      mulda_presence: original.mulda_presence,
+      distance_km: null,
+      distance_anchor: '',
+      description: original.description,
+      website: original.website,
+      email: original.email,
+      phone: original.phone,
+      source: `Duplicated from "${original.name}"`,
+      source_url: original.source_url,
+      pending_review: original.pending_review,
       strength_score: null,
       strength_rationale: '',
       duplicate_dismissed: false,

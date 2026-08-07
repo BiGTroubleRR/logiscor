@@ -33,7 +33,7 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
 }
 
 function Row({ c }: { c: CompanyView }) {
-  const { openDrawer, dismissDuplicate, deleteCompanyAction } = useCrm();
+  const { openDrawer, dismissDuplicate, deleteCompanyAction, route } = useCrm();
   const score = getDisplayScore(c);
   const tier = tierColor(score);
   const visibleTags = c.capability_tags.slice(0, 2);
@@ -128,7 +128,18 @@ function Row({ c }: { c: CompanyView }) {
           </div>
         )}
       </td>
-      <td style={{ ...td, textAlign: 'right', color: '#64748b' }}>{c.distance_km != null ? `${c.distance_km} km` : '—'}</td>
+      <td style={{ ...td, textAlign: 'right', color: '#64748b' }}>
+        {route.active && (c.distance_to_origin_km != null || c.distance_to_dest_km != null) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11 }}>
+            {c.distance_to_origin_km != null && <div>{c.distance_to_origin_km} km from origin</div>}
+            {c.distance_to_dest_km != null && <div>{c.distance_to_dest_km} km from dest.</div>}
+          </div>
+        ) : c.distance_km != null ? (
+          `${c.distance_km} km`
+        ) : (
+          '—'
+        )}
+      </td>
       <td style={{ ...td, textAlign: 'right' }}>
         <button
           onClick={(e) => {
@@ -146,7 +157,8 @@ function Row({ c }: { c: CompanyView }) {
 }
 
 export default function CompanyTable() {
-  const { sorted } = useCrm();
+  const { sorted, route } = useCrm();
+  const distanceLabel = route.active ? 'Distance (Origin / Dest.)' : 'Distance';
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
@@ -162,7 +174,7 @@ export default function CompanyTable() {
               <SortHeader label="Strength" sortKey="strength_score" />
               <SortHeader label="Route Score" sortKey="route_score" />
               <th style={thStyleNoSort}>Trailer Types</th>
-              <SortHeader label="Distance" sortKey="distance_km" />
+              <SortHeader label={distanceLabel} sortKey="distance_km" />
               <th style={thStyleRight} />
             </tr>
           </thead>

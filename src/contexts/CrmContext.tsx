@@ -3,12 +3,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType, NewCompanyInput } from '@/types/company';
 import type { Identity } from '@/lib/role';
-import { spreadOverlappingCoords } from '@/lib/geo';
+import { haversineKm, spreadOverlappingCoords } from '@/lib/geo';
 import { computeDuplicateFlags } from '@/lib/duplicates';
 import { getDisplayScore } from '@/lib/format';
 import { scoreCompanyAgainstRoute, type RouteScoreResult } from '@/lib/route-score';
 import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
+import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
 
 export type FilterState = {
@@ -149,6 +150,8 @@ type CrmContextValue = {
   saveEditDetails: () => Promise<void>;
 
   addCompany: () => Promise<void>;
+  duplicateCompanyAction: (id: string) => Promise<void>;
+  importCompanies: (rows: ImportedCompanyRow[]) => Promise<{ importedCount: number; rowErrors: ImportRowError[] } | null>;
   deleteCompanyAction: (id: string) => Promise<void>;
   dismissDuplicate: (id: string) => Promise<void>;
   restoreDuplicate: (id: string) => Promise<void>;
@@ -211,6 +214,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const companies = useMemo<CompanyView[]>(() => {
     const spread = spreadOverlappingCoords(rawCompanies);
     const withDuplicates = computeDuplicateFlags(spread);
+    const originCoord = route.originCoord;
+    const destCoord = route.destCoord;
     return withDuplicates.map((c) => {
       const rs = routeScores.get(c.id);
       return {
@@ -219,9 +224,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         route_distance_km: rs?.route_distance_km ?? null,
         routeMatch: rs?.routeMatch ?? false,
         route_cargo_match: rs?.route_cargo_match ?? false,
+        distance_to_origin_km: originCoord ? Math.round(haversineKm(c.lat, c.lng, originCoord.lat, originCoord.lng) * 10) / 10 : null,
+        distance_to_dest_km: destCoord ? Math.round(haversineKm(c.lat, c.lng, destCoord.lat, destCoord.lng) * 10) / 10 : null,
       };
     });
-  }, [rawCompanies, routeScores]);
+  }, [rawCompanies, routeScores, route.originCoord, route.destCoord]);
 
   const allCapabilities = useMemo(
     () => Array.from(new Set(companies.flatMap((c) => c.capability_tags))).sort(),
@@ -604,6 +611,33 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     });
   }, [runMutation]);
 
+  // Same reasoning as addCompany above: build drawer/edit state directly from `created`
+  // rather than routing through openDrawer(), which would still see the pre-duplication list.
+  const duplicateCompanyAction = useCallback(
+    async (id: string) => {
+      const created = await runMutation(() => api.duplicateCompanyApi(id));
+      if (!created) return;
+      setRawCompanies((list) => [created, ...list]);
+      setSelectedId(created.id);
+      setActivityLog([]);
+      setActivityLoading(false);
+      setEditingDetails(false);
+      setEditError('');
+      setEditDraftState(null);
+    },
+    [runMutation],
+  );
+
+  const importCompanies = useCallback(
+    async (rows: ImportedCompanyRow[]): Promise<{ importedCount: number; rowErrors: ImportRowError[] } | null> => {
+      const result = await runMutation(() => api.importCompanies(rows));
+      if (!result) return null;
+      setRawCompanies((list) => [...result.companies, ...list]);
+      return { importedCount: result.companies.length, rowErrors: result.rowErrors };
+    },
+    [runMutation],
+  );
+
   const deleteCompanyAction = useCallback(
     async (id: string) => {
       const c = rawCompanies.find((x) => x.id === id);
@@ -683,6 +717,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setEditField,
     saveEditDetails,
     addCompany,
+    duplicateCompanyAction,
+    importCompanies,
     deleteCompanyAction,
     dismissDuplicate,
     restoreDuplicate,

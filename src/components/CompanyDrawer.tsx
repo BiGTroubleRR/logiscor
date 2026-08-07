@@ -11,6 +11,7 @@ export default function CompanyDrawer() {
     identity,
     closeDrawer,
     deleteCompanyAction,
+    duplicateCompanyAction,
     draft,
     setDraft,
     saveStrength,
@@ -75,6 +76,13 @@ export default function CompanyDrawer() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+            <button
+              onClick={() => duplicateCompanyAction(selected.id)}
+              title="Duplicate company"
+              style={{ border: 'none', background: '#f1f5f9', color: '#334155', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+            >
+              ⧉
+            </button>
             <button
               onClick={() => deleteCompanyAction(selected.id)}
               title="Delete company"

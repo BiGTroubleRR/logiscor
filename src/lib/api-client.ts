@@ -2,6 +2,7 @@
 // src/app/api/companies/, which re-checks the Supabase session server-side — see src/lib/role.ts.
 import type { ActivityLogEntry, ActivityType, Company, NewCompanyInput } from '@/types/company';
 import type { Identity } from '@/lib/role';
+import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 
 async function unwrap<T>(res: Response, key: string): Promise<T> {
   const body = await res.json().catch(() => ({}));
@@ -65,6 +66,26 @@ export async function saveTrailerTypes(id: string, types: string[]): Promise<Com
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, types }),
+  });
+  return unwrap<Company>(res, 'company');
+}
+
+export async function importCompanies(rows: ImportedCompanyRow[]): Promise<{ companies: Company[]; rowErrors: ImportRowError[] }> {
+  const res = await fetch('/api/companies/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status}).`);
+  return { companies: body.companies ?? [], rowErrors: body.rowErrors ?? [] };
+}
+
+export async function duplicateCompanyApi(id: string): Promise<Company> {
+  const res = await fetch('/api/companies/copy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
   });
   return unwrap<Company>(res, 'company');
 }
