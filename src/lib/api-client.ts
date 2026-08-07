@@ -1,6 +1,6 @@
 // Thin fetch wrappers the client components call. Every request hits a Route Handler under
 // src/app/api/companies/, which re-checks the Supabase session server-side — see src/lib/role.ts.
-import type { ActivityLogEntry, ActivityType, Company, NewCompanyInput } from '@/types/company';
+import type { ActivityLogEntry, ActivityType, Company, NewCompanyInput, RateQuote } from '@/types/company';
 import type { Identity } from '@/lib/role';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 
@@ -111,4 +111,37 @@ export async function addActivityLogEntryApi(companyId: string, type: ActivityTy
     body: JSON.stringify({ companyId, type, summary }),
   });
   return unwrap<ActivityLogEntry>(res, 'entry');
+}
+
+export async function fetchRateQuotes(companyId: string): Promise<RateQuote[]> {
+  const res = await fetch(`/api/companies/rates?companyId=${encodeURIComponent(companyId)}`, { cache: 'no-store' });
+  return unwrap<RateQuote[]>(res, 'quotes');
+}
+
+export type NewRateQuoteInput = {
+  origin: string;
+  destination: string;
+  cargoType: string;
+  vehicleType: string;
+  rate: number | null;
+  demFt: string;
+  notes: string;
+};
+
+export async function addRateQuoteApi(companyId: string, input: NewRateQuoteInput): Promise<RateQuote> {
+  const res = await fetch('/api/companies/rates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ companyId, ...input }),
+  });
+  return unwrap<RateQuote>(res, 'quote');
+}
+
+export async function deleteRateQuoteApi(id: string): Promise<void> {
+  const res = await fetch('/api/companies/rates', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  await unwrap<{ ok: true }>(res, 'ok');
 }

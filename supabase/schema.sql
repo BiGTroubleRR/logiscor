@@ -131,3 +131,26 @@ alter table public.activity_log enable row level security;
 -- Deliberately no policies here — see the note at the top of this file.
 
 create index if not exists activity_log_company_id_idx on public.activity_log (company_id);
+
+-- ---------------------------------------------------------------------------
+-- rate_quotes — freight rates staff have actually received from a company for a given
+-- origin/destination lane, so past quotes are on hand next time a similar lane comes up.
+-- Append-only from the UI (add/delete, no edit), same as activity_log.
+-- ---------------------------------------------------------------------------
+create table if not exists public.rate_quotes (
+  id uuid primary key default gen_random_uuid(),
+  company_id text not null references public.companies (id) on delete cascade,
+  origin text not null,
+  destination text not null,
+  cargo_type text not null default '',
+  vehicle_type text not null default '',
+  rate numeric,
+  dem_ft text not null default '',
+  notes text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.rate_quotes enable row level security;
+-- Deliberately no policies here — see the note at the top of this file.
+
+create index if not exists rate_quotes_company_id_idx on public.rate_quotes (company_id);

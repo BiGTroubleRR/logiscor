@@ -38,6 +38,19 @@ type ActivityLogRow = {
   created_at: string;
 };
 
+type RateQuoteRow = {
+  id: string;
+  company_id: string;
+  origin: string;
+  destination: string;
+  cargo_type: string;
+  vehicle_type: string;
+  rate: number | null;
+  dem_ft: string;
+  notes: string;
+  created_at: string;
+};
+
 type ProfileRow = {
   id: string;
   email: string;
@@ -64,6 +77,12 @@ export type Database = {
         Row: ProfileRow;
         Insert: Partial<ProfileRow> & { id: string };
         Update: Partial<ProfileRow>;
+        Relationships: [];
+      };
+      rate_quotes: {
+        Row: RateQuoteRow;
+        Insert: Partial<RateQuoteRow> & { company_id: string; origin: string; destination: string };
+        Update: Partial<RateQuoteRow>;
         Relationships: [];
       };
     };

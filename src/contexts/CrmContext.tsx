@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType, NewCompanyInput } from '@/types/company';
+import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType, NewCompanyInput, RateQuote } from '@/types/company';
 import type { Identity } from '@/lib/role';
 import { haversineKm, spreadOverlappingCoords } from '@/lib/geo';
 import { computeDuplicateFlags } from '@/lib/duplicates';
@@ -9,6 +9,7 @@ import { getDisplayScore } from '@/lib/format';
 import { scoreCompanyAgainstRoute, type RouteScoreResult } from '@/lib/route-score';
 import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
+import { PRESET_CAPABILITIES } from '@/lib/capabilities';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
 
@@ -89,6 +90,23 @@ export type DrawerDraft = {
   trailerTypeChoice: string;
   activityType: ActivityType;
   activityNote: string;
+  rateOrigin: string;
+  rateDestination: string;
+  rateCargoType: string;
+  rateVehicleType: string;
+  rateAmount: string;
+  rateDemFt: string;
+  rateNotes: string;
+};
+
+const EMPTY_RATE_DRAFT_FIELDS = {
+  rateOrigin: '',
+  rateDestination: '',
+  rateCargoType: '',
+  rateVehicleType: '',
+  rateAmount: '',
+  rateDemFt: '',
+  rateNotes: '',
 };
 
 type CrmContextValue = {
@@ -129,6 +147,8 @@ type CrmContextValue = {
   closeDrawer: () => void;
   activityLog: ActivityLogEntry[];
   activityLoading: boolean;
+  rateQuotes: RateQuote[];
+  rateQuotesLoading: boolean;
 
   draft: DrawerDraft;
   setDraft: (patch: Partial<DrawerDraft>) => void;
@@ -138,6 +158,8 @@ type CrmContextValue = {
   addTrailerType: () => Promise<void>;
   removeTrailerType: (type: string) => Promise<void>;
   addActivity: () => Promise<void>;
+  addRateQuote: () => Promise<void>;
+  deleteRateQuoteAction: (id: string) => Promise<void>;
 
   editingDetails: boolean;
   editDraft: EditDraft | null;
@@ -175,6 +197,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [rateQuotes, setRateQuotes] = useState<RateQuote[]>([]);
+  const [rateQuotesLoading, setRateQuotesLoading] = useState(false);
   const [draft, setDraftState] = useState<DrawerDraft>({
     strength: 0,
     rationale: '',
@@ -182,6 +206,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     trailerTypeChoice: '',
     activityType: 'Call',
     activityNote: '',
+    ...EMPTY_RATE_DRAFT_FIELDS,
   });
 
   const [editingDetails, setEditingDetails] = useState(false);
@@ -228,13 +253,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     });
   }, [rawCompanies, routeScores, route.originCoord, route.destCoord]);
 
+  // Union of the preset list and whatever's actually in use, so staff can pick a capability
+  // that's never been used yet instead of only ones already present in the data.
   const allCapabilities = useMemo(
-    () => Array.from(new Set(companies.flatMap((c) => c.capability_tags))).sort(),
+    () => Array.from(new Set([...PRESET_CAPABILITIES, ...companies.flatMap((c) => c.capability_tags)])).sort(),
     [companies],
   );
 
-  // Union of the preset list and whatever's actually in use — see src/lib/trailer-types.ts for
-  // why a plain "derive from data" approach (like allCapabilities above) doesn't work here.
+  // Same reasoning as allCapabilities above — see src/lib/trailer-types.ts.
   const allTrailerTypes = useMemo(
     () => Array.from(new Set([...PRESET_TRAILER_TYPES, ...companies.flatMap((c) => c.trailer_types)])).sort(),
     [companies],
@@ -437,6 +463,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         trailerTypeChoice: '',
         activityType: 'Call',
         activityNote: '',
+        ...EMPTY_RATE_DRAFT_FIELDS,
       });
       setActivityLoading(true);
       api
@@ -444,6 +471,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         .then(setActivityLog)
         .catch(() => setActivityLog([]))
         .finally(() => setActivityLoading(false));
+      setRateQuotesLoading(true);
+      api
+        .fetchRateQuotes(id)
+        .then(setRateQuotes)
+        .catch(() => setRateQuotes([]))
+        .finally(() => setRateQuotesLoading(false));
     },
     [companies],
   );
@@ -453,6 +486,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setEditingDetails(false);
     setEditDraftState(null);
     setActivityLog([]);
+    setRateQuotes([]);
   }, []);
 
   const saveStrength = useCallback(async () => {
@@ -509,6 +543,34 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setDraftState((d) => ({ ...d, activityNote: '' }));
     }
   }, [selectedId, draft.activityType, draft.activityNote, runMutation]);
+
+  const addRateQuote = useCallback(async () => {
+    if (!selectedId || !draft.rateOrigin.trim() || !draft.rateDestination.trim()) return;
+    const amount = draft.rateAmount.trim() ? Number(draft.rateAmount) : null;
+    const quote = await runMutation(() =>
+      api.addRateQuoteApi(selectedId, {
+        origin: draft.rateOrigin,
+        destination: draft.rateDestination,
+        cargoType: draft.rateCargoType,
+        vehicleType: draft.rateVehicleType,
+        rate: amount != null && Number.isFinite(amount) ? amount : null,
+        demFt: draft.rateDemFt,
+        notes: draft.rateNotes,
+      }),
+    );
+    if (quote) {
+      setRateQuotes((quotes) => [quote, ...quotes]);
+      setDraftState((d) => ({ ...d, ...EMPTY_RATE_DRAFT_FIELDS }));
+    }
+  }, [selectedId, draft.rateOrigin, draft.rateDestination, draft.rateCargoType, draft.rateVehicleType, draft.rateAmount, draft.rateDemFt, draft.rateNotes, runMutation]);
+
+  const deleteRateQuoteAction = useCallback(
+    async (id: string) => {
+      const ok = await runMutation(() => api.deleteRateQuoteApi(id));
+      if (ok !== null) setRateQuotes((quotes) => quotes.filter((q) => q.id !== id));
+    },
+    [runMutation],
+  );
 
   // ---- details edit ----
   const startEditDetails = useCallback(() => {
@@ -590,6 +652,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setSelectedId(created.id);
     setActivityLog([]);
     setActivityLoading(false);
+    setRateQuotes([]);
+    setRateQuotesLoading(false);
     setEditingDetails(true);
     setEditError('');
     setEditDraftState({
@@ -618,6 +682,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setSelectedId(created.id);
       setActivityLog([]);
       setActivityLoading(false);
+      setRateQuotes([]);
+      setRateQuotesLoading(false);
       setEditingDetails(false);
       setEditError('');
       setEditDraftState(null);
@@ -698,6 +764,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     closeDrawer,
     activityLog,
     activityLoading,
+    rateQuotes,
+    rateQuotesLoading,
     draft,
     setDraft,
     saveStrength,
@@ -706,6 +774,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     addTrailerType,
     removeTrailerType,
     addActivity,
+    addRateQuote,
+    deleteRateQuoteAction,
     editingDetails,
     editDraft,
     editError,

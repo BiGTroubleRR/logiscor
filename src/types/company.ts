@@ -46,6 +46,21 @@ export type ActivityLogEntry = {
   created_at: string;
 };
 
+// A freight rate staff actually received from this company for a given lane — see
+// rate_quotes in schema.sql. Append-only from the UI, same as ActivityLogEntry.
+export type RateQuote = {
+  id: string;
+  company_id: string;
+  origin: string;
+  destination: string;
+  cargo_type: string;
+  vehicle_type: string;
+  rate: number | null;
+  dem_ft: string;
+  notes: string;
+  created_at: string;
+};
+
 // Client-side view of a Company, with computed fields the prototype attached at
 // runtime: display coordinates (de-overlapped for the map), duplicate flags, and
 // the ephemeral route-search score/match (never persisted).

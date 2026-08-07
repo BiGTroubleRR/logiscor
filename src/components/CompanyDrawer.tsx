@@ -33,6 +33,10 @@ export default function CompanyDrawer() {
     activityLog,
     activityLoading,
     addActivity,
+    rateQuotes,
+    rateQuotesLoading,
+    addRateQuote,
+    deleteRateQuoteAction,
   } = useCrm();
 
   if (!selected) return null;
@@ -359,6 +363,118 @@ export default function CompanyDrawer() {
                     </div>
                   ))}
                   {activityLog.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>No activity logged yet.</div>}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Rates Received — past quotes for a specific lane, so staff have them on hand
+              next time a similar route comes up. */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Rates Received</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <input
+                  type="text"
+                  value={draft.rateOrigin}
+                  onChange={(e) => setDraft({ rateOrigin: e.target.value })}
+                  placeholder="Origin"
+                  style={editInputStyle}
+                />
+                <input
+                  type="text"
+                  value={draft.rateDestination}
+                  onChange={(e) => setDraft({ rateDestination: e.target.value })}
+                  placeholder="Destination"
+                  style={editInputStyle}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <input
+                  type="text"
+                  value={draft.rateCargoType}
+                  onChange={(e) => setDraft({ rateCargoType: e.target.value })}
+                  placeholder="Cargo type"
+                  style={editInputStyle}
+                />
+                <input
+                  type="text"
+                  value={draft.rateVehicleType}
+                  onChange={(e) => setDraft({ rateVehicleType: e.target.value })}
+                  placeholder="Vehicle type"
+                  style={editInputStyle}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <input
+                  type="number"
+                  value={draft.rateAmount}
+                  onChange={(e) => setDraft({ rateAmount: e.target.value })}
+                  placeholder="Rate (€)"
+                  style={editInputStyle}
+                />
+                <input
+                  type="text"
+                  value={draft.rateDemFt}
+                  onChange={(e) => setDraft({ rateDemFt: e.target.value })}
+                  placeholder="DEM / free time"
+                  style={editInputStyle}
+                />
+              </div>
+              <textarea
+                value={draft.rateNotes}
+                onChange={(e) => setDraft({ rateNotes: e.target.value })}
+                placeholder="Notes (RFQ status, date, link...)"
+                style={{ ...editInputStyle, minHeight: 44, resize: 'vertical' }}
+              />
+              <button
+                onClick={addRateQuote}
+                disabled={!draft.rateOrigin.trim() || !draft.rateDestination.trim()}
+                style={{
+                  alignSelf: 'flex-start',
+                  background: '#0f172a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '7px 12px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  opacity: !draft.rateOrigin.trim() || !draft.rateDestination.trim() ? 0.5 : 1,
+                }}
+              >
+                Add Rate
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {rateQuotesLoading ? (
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>Loading…</div>
+              ) : (
+                <>
+                  {rateQuotes.map((quote) => (
+                    <div key={quote.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                          {quote.origin} → {quote.destination}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {quote.rate != null && <span style={{ fontWeight: 600, color: '#0f172a' }}>€{quote.rate.toLocaleString()}</span>}
+                          {quote.vehicle_type && <span>{quote.vehicle_type}</span>}
+                          {quote.cargo_type && <span>{quote.cargo_type}</span>}
+                          {quote.dem_ft && <span>DEM/F.T.: {quote.dem_ft}</span>}
+                        </div>
+                        {quote.notes && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{quote.notes}</div>}
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{formatDate(quote.created_at)}</div>
+                      </div>
+                      <button
+                        onClick={() => deleteRateQuoteAction(quote.id)}
+                        title="Delete rate"
+                        style={{ border: 'none', background: 'none', color: '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  ))}
+                  {rateQuotes.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>No rates on file yet.</div>}
                 </>
               )}
             </div>
