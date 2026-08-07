@@ -24,6 +24,7 @@ type CompanyRow = {
   strength_score: number | null;
   strength_rationale: string;
   duplicate_dismissed: boolean;
+  label_color: string;
   created_at: string;
   updated_at: string;
 };

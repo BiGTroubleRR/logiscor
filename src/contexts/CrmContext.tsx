@@ -189,6 +189,7 @@ type CrmContextValue = {
   deleteCompanyAction: (id: string) => Promise<void>;
   dismissDuplicate: (id: string) => Promise<void>;
   restoreDuplicate: (id: string) => Promise<void>;
+  setLabelColor: (id: string, color: string) => Promise<void>;
 
   mutationError: string;
 };
@@ -760,6 +761,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [runMutation],
   );
 
+  const setLabelColor = useCallback(
+    async (id: string, color: string) => {
+      const updated = await runMutation(() => api.setLabelColorApi(id, color));
+      if (updated) patchCompanyLocal(updated);
+    },
+    [runMutation],
+  );
+
   const restoreDuplicate = useCallback(
     async (id: string) => {
       const updated = await runMutation(() => api.setDuplicateDismissedApi(id, false));
@@ -827,6 +836,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     deleteCompanyAction,
     dismissDuplicate,
     restoreDuplicate,
+    setLabelColor,
     mutationError,
   };
 

@@ -70,6 +70,15 @@ export async function saveTrailerTypes(id: string, types: string[]): Promise<Com
   return unwrap<Company>(res, 'company');
 }
 
+export async function setLabelColorApi(id: string, color: string): Promise<Company> {
+  const res = await fetch('/api/companies/color', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, color }),
+  });
+  return unwrap<Company>(res, 'company');
+}
+
 export async function importCompanies(rows: ImportedCompanyRow[]): Promise<{ companies: Company[]; rowErrors: ImportRowError[] }> {
   const res = await fetch('/api/companies/import', {
     method: 'POST',

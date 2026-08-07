@@ -100,6 +100,7 @@ export async function duplicateCompany(original: Company, newName: string): Prom
       strength_score: null,
       strength_rationale: '',
       duplicate_dismissed: false,
+      label_color: original.label_color,
     })
     .select('*')
     .single();
@@ -137,6 +138,13 @@ export async function updateTrailerTypes(id: string, types: string[]): Promise<C
     .eq('id', id)
     .select('*')
     .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function updateLabelColor(id: string, color: string): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from('companies').update({ label_color: color }).eq('id', id).select('*').single();
   if (error) throw error;
   return data as unknown as Company;
 }

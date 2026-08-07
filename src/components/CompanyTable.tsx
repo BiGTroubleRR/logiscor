@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { formatTag, getDisplayScore, tierColor, typeColor } from '@/lib/format';
+import { ROW_COLORS } from '@/lib/row-colors';
 import type { CompanyView } from '@/types/company';
 
 const thStyle: CSSProperties = {
@@ -33,7 +34,7 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
 }
 
 function Row({ c }: { c: CompanyView }) {
-  const { openDrawer, dismissDuplicate, deleteCompanyAction, route } = useCrm();
+  const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route } = useCrm();
   const score = getDisplayScore(c);
   const tier = tierColor(score);
   const visibleTags = c.capability_tags.slice(0, 2);
@@ -43,7 +44,9 @@ function Row({ c }: { c: CompanyView }) {
 
   const rowStyle: CSSProperties = c.isDuplicate
     ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }
-    : { borderBottom: '1px solid #f1f5f9', cursor: 'pointer' };
+    : c.label_color
+      ? { background: `${c.label_color}14`, boxShadow: `inset 3px 0 0 ${c.label_color}`, borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }
+      : { borderBottom: '1px solid #f1f5f9', cursor: 'pointer' };
 
   return (
     <tr onClick={() => openDrawer(c.id)} style={rowStyle}>
@@ -138,6 +141,31 @@ function Row({ c }: { c: CompanyView }) {
           '—'
         )}
       </td>
+      <td style={{ ...td, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+        <select
+          value={c.label_color}
+          onChange={(e) => setLabelColor(c.id, e.target.value)}
+          title="Row color"
+          style={{
+            border: '1px solid #cbd5e1',
+            borderRadius: 6,
+            padding: '4px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            background: c.label_color || '#fff',
+            color: c.label_color ? '#fff' : '#94a3b8',
+            cursor: 'pointer',
+            width: 96,
+          }}
+        >
+          <option value="">None</option>
+          {ROW_COLORS.map((rc) => (
+            <option key={rc.hex} value={rc.hex} style={{ background: rc.hex, color: '#fff' }}>
+              {rc.name}
+            </option>
+          ))}
+        </select>
+      </td>
       <td style={{ ...td, textAlign: 'right' }}>
         <button
           onClick={(e) => {
@@ -173,6 +201,7 @@ export default function CompanyTable() {
               <SortHeader label="Route Score" sortKey="route_score" />
               <th style={thStyleNoSort}>Trailer Types</th>
               <SortHeader label={distanceLabel} sortKey="distance_km" />
+              <th style={thStyleNoSort}>Color</th>
               <th style={thStyleRight} />
             </tr>
           </thead>

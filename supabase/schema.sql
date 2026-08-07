@@ -87,6 +87,10 @@ create table if not exists public.companies (
   -- (matching by normalized name/domain) runs live in the app, not stored here.
   duplicate_dismissed boolean not null default false,
 
+  -- Row highlight color for the company list — a hex code from src/lib/row-colors.ts,
+  -- or '' for no color. Unconstrained text (no CHECK), same reasoning as capability_tags.
+  label_color text not null default '',
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
