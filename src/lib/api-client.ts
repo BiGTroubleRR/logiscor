@@ -121,8 +121,15 @@ export async function fetchRateQuotes(companyId: string): Promise<RateQuote[]> {
 export type NewRateQuoteInput = {
   origin: string;
   destination: string;
-  cargoType: string;
+  transportMode: string;
+  loadType: string;
+  containerType: string;
   vehicleType: string;
+  capacity: string;
+  cargoType: string;
+  hazmatClass: string;
+  serviceType: string;
+  deliveryScope: string;
   rate: number | null;
   demFt: string;
   notes: string;

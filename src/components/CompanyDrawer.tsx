@@ -4,6 +4,52 @@ import { useCrm } from '@/contexts/CrmContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
 import { activityTypeColor, formatDate, formatTag, tierColor } from '@/lib/format';
 import type { ActivityType, CompanyType } from '@/types/company';
+import {
+  TRANSPORT_MODES,
+  LOAD_TYPES,
+  CONTAINER_TYPES,
+  ROAD_VEHICLE_TYPES,
+  ROAD_CAPACITIES,
+  ROAD_SERVICE_TYPES,
+  SPECIAL_CARGO_TYPES,
+  GENERAL_CARGO_TYPES,
+  HAZMAT_CLASSES,
+  DELIVERY_SCOPES,
+} from '@/lib/rate-quote-options';
+
+const rateSectionLabelStyle = { fontSize: 11, color: '#94a3b8', marginBottom: 3 } as const;
+const OTHER_SENTINEL = '__other__';
+
+// A <select> from a preset list, with a trailing "Other" option that swaps in a free-text
+// input — for the couple of fields (Container Type, Capacity) the taxonomy explicitly
+// leaves open-ended ("... 등" / "etc." in the request) rather than a closed set.
+function OtherableSelect({
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  placeholder: string;
+  onChange: (v: string) => void;
+}) {
+  const isCustom = value !== '' && !options.includes(value);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <select value={isCustom ? OTHER_SENTINEL : value} onChange={(e) => onChange(e.target.value === OTHER_SENTINEL ? ' ' : e.target.value)} style={editInputStyle}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+        <option value={OTHER_SENTINEL}>Other (specify)</option>
+      </select>
+      {isCustom && <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Specify..." style={editInputStyle} />}
+    </div>
+  );
+}
 
 export default function CompanyDrawer() {
   const {
@@ -372,7 +418,7 @@ export default function CompanyDrawer() {
               next time a similar route comes up. */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Rates Received</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <input
                   type="text"
@@ -389,22 +435,159 @@ export default function CompanyDrawer() {
                   style={editInputStyle}
                 />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                <input
-                  type="text"
-                  value={draft.rateCargoType}
-                  onChange={(e) => setDraft({ rateCargoType: e.target.value })}
-                  placeholder="Cargo type"
+
+              {/* 1. Transport Mode — top-level filter; nothing below appears until this is set. */}
+              <div>
+                <div style={rateSectionLabelStyle}>Transport Mode</div>
+                <select
+                  value={draft.rateTransportMode}
+                  onChange={(e) =>
+                    setDraft({
+                      rateTransportMode: e.target.value,
+                      rateLoadType: '',
+                      rateContainerType: '',
+                      rateVehicleType: '',
+                      rateCapacity: '',
+                      rateServiceType: '',
+                    })
+                  }
                   style={editInputStyle}
-                />
-                <input
-                  type="text"
-                  value={draft.rateVehicleType}
-                  onChange={(e) => setDraft({ rateVehicleType: e.target.value })}
-                  placeholder="Vehicle type"
-                  style={editInputStyle}
-                />
+                >
+                  <option value="">Select transport mode...</option>
+                  {TRANSPORT_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {draft.rateTransportMode && (
+                <>
+                  {/* 2. Cargo & Equipment Specification — depends on transport mode. */}
+                  {(draft.rateTransportMode === 'Ocean Freight' || draft.rateTransportMode === 'Rail / Multimodal') && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      <div>
+                        <div style={rateSectionLabelStyle}>Load Type</div>
+                        <select value={draft.rateLoadType} onChange={(e) => setDraft({ rateLoadType: e.target.value })} style={editInputStyle}>
+                          <option value="">Select load type...</option>
+                          {LOAD_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={rateSectionLabelStyle}>Container Type</div>
+                        <OtherableSelect
+                          value={draft.rateContainerType}
+                          options={CONTAINER_TYPES}
+                          placeholder="Select container type..."
+                          onChange={(v) => setDraft({ rateContainerType: v })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {draft.rateTransportMode === 'Road Freight' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      <div>
+                        <div style={rateSectionLabelStyle}>Vehicle / Body Type</div>
+                        <select value={draft.rateVehicleType} onChange={(e) => setDraft({ rateVehicleType: e.target.value })} style={editInputStyle}>
+                          <option value="">Select vehicle type...</option>
+                          {ROAD_VEHICLE_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={rateSectionLabelStyle}>Capacity</div>
+                        <OtherableSelect
+                          value={draft.rateCapacity}
+                          options={ROAD_CAPACITIES}
+                          placeholder="Select capacity..."
+                          onChange={(v) => setDraft({ rateCapacity: v })}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Cargo Type & Handling Requirements. */}
+                  <div>
+                    <div style={rateSectionLabelStyle}>Cargo Type & Handling</div>
+                    <select
+                      value={draft.rateCargoType}
+                      onChange={(e) => {
+                        const cargoType = e.target.value;
+                        setDraft({ rateCargoType: cargoType, rateHazmatClass: cargoType === 'ADR / Hazmat' ? draft.rateHazmatClass : '' });
+                      }}
+                      style={editInputStyle}
+                    >
+                      <option value="">Select cargo type...</option>
+                      <optgroup label="Special Cargo">
+                        {SPECIAL_CARGO_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="General Cargo">
+                        {GENERAL_CARGO_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  {draft.rateCargoType === 'ADR / Hazmat' && (
+                    <div>
+                      <div style={rateSectionLabelStyle}>Hazmat Class</div>
+                      <select value={draft.rateHazmatClass} onChange={(e) => setDraft({ rateHazmatClass: e.target.value })} style={editInputStyle}>
+                        <option value="">Select hazmat class...</option>
+                        {HAZMAT_CLASSES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* 4. Service Type & Operational Scope. */}
+                  <div style={{ display: 'grid', gridTemplateColumns: draft.rateTransportMode === 'Road Freight' ? '1fr 1fr' : '1fr', gap: 6 }}>
+                    {draft.rateTransportMode === 'Road Freight' && (
+                      <div>
+                        <div style={rateSectionLabelStyle}>Road Fleet Type</div>
+                        <select value={draft.rateServiceType} onChange={(e) => setDraft({ rateServiceType: e.target.value })} style={editInputStyle}>
+                          <option value="">Select fleet type...</option>
+                          {ROAD_SERVICE_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div>
+                      <div style={rateSectionLabelStyle}>Delivery Scope</div>
+                      <select value={draft.rateDeliveryScope} onChange={(e) => setDraft({ rateDeliveryScope: e.target.value })} style={editInputStyle}>
+                        <option value="">Select delivery scope...</option>
+                        {DELIVERY_SCOPES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <input
                   type="number"
@@ -458,8 +641,15 @@ export default function CompanyDrawer() {
                         </div>
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                           {quote.rate != null && <span style={{ fontWeight: 600, color: '#0f172a' }}>€{quote.rate.toLocaleString()}</span>}
+                          {quote.transport_mode && <span>{quote.transport_mode}</span>}
+                          {quote.load_type && <span>{quote.load_type}</span>}
+                          {quote.container_type && <span>{quote.container_type}</span>}
                           {quote.vehicle_type && <span>{quote.vehicle_type}</span>}
+                          {quote.capacity && <span>{quote.capacity}</span>}
                           {quote.cargo_type && <span>{quote.cargo_type}</span>}
+                          {quote.hazmat_class && <span>{quote.hazmat_class}</span>}
+                          {quote.service_type && <span>{quote.service_type}</span>}
+                          {quote.delivery_scope && <span>{quote.delivery_scope}</span>}
                           {quote.dem_ft && <span>DEM/F.T.: {quote.dem_ft}</span>}
                         </div>
                         {quote.notes && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{quote.notes}</div>}

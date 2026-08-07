@@ -92,8 +92,15 @@ export type DrawerDraft = {
   activityNote: string;
   rateOrigin: string;
   rateDestination: string;
-  rateCargoType: string;
+  rateTransportMode: string;
+  rateLoadType: string;
+  rateContainerType: string;
   rateVehicleType: string;
+  rateCapacity: string;
+  rateCargoType: string;
+  rateHazmatClass: string;
+  rateServiceType: string;
+  rateDeliveryScope: string;
   rateAmount: string;
   rateDemFt: string;
   rateNotes: string;
@@ -102,8 +109,15 @@ export type DrawerDraft = {
 const EMPTY_RATE_DRAFT_FIELDS = {
   rateOrigin: '',
   rateDestination: '',
-  rateCargoType: '',
+  rateTransportMode: '',
+  rateLoadType: '',
+  rateContainerType: '',
   rateVehicleType: '',
+  rateCapacity: '',
+  rateCargoType: '',
+  rateHazmatClass: '',
+  rateServiceType: '',
+  rateDeliveryScope: '',
   rateAmount: '',
   rateDemFt: '',
   rateNotes: '',
@@ -551,8 +565,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       api.addRateQuoteApi(selectedId, {
         origin: draft.rateOrigin,
         destination: draft.rateDestination,
-        cargoType: draft.rateCargoType,
+        transportMode: draft.rateTransportMode,
+        loadType: draft.rateLoadType,
+        containerType: draft.rateContainerType,
         vehicleType: draft.rateVehicleType,
+        capacity: draft.rateCapacity,
+        cargoType: draft.rateCargoType,
+        hazmatClass: draft.rateHazmatClass,
+        serviceType: draft.rateServiceType,
+        deliveryScope: draft.rateDeliveryScope,
         rate: amount != null && Number.isFinite(amount) ? amount : null,
         demFt: draft.rateDemFt,
         notes: draft.rateNotes,
@@ -562,7 +583,24 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setRateQuotes((quotes) => [quote, ...quotes]);
       setDraftState((d) => ({ ...d, ...EMPTY_RATE_DRAFT_FIELDS }));
     }
-  }, [selectedId, draft.rateOrigin, draft.rateDestination, draft.rateCargoType, draft.rateVehicleType, draft.rateAmount, draft.rateDemFt, draft.rateNotes, runMutation]);
+  }, [
+    selectedId,
+    draft.rateOrigin,
+    draft.rateDestination,
+    draft.rateTransportMode,
+    draft.rateLoadType,
+    draft.rateContainerType,
+    draft.rateVehicleType,
+    draft.rateCapacity,
+    draft.rateCargoType,
+    draft.rateHazmatClass,
+    draft.rateServiceType,
+    draft.rateDeliveryScope,
+    draft.rateAmount,
+    draft.rateDemFt,
+    draft.rateNotes,
+    runMutation,
+  ]);
 
   const deleteRateQuoteAction = useCallback(
     async (id: string) => {

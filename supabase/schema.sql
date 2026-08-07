@@ -137,13 +137,29 @@ create index if not exists activity_log_company_id_idx on public.activity_log (c
 -- origin/destination lane, so past quotes are on hand next time a similar lane comes up.
 -- Append-only from the UI (add/delete, no edit), same as activity_log.
 -- ---------------------------------------------------------------------------
+-- Cargo/vehicle-type-shaped columns are unconstrained text (no CHECK), same approach as
+-- capability_tags/trailer_types on companies: the option lists in
+-- src/lib/rate-quote-options.ts drive the dropdowns, but staff can always type a custom
+-- value the list hasn't caught up with yet.
 create table if not exists public.rate_quotes (
   id uuid primary key default gen_random_uuid(),
   company_id text not null references public.companies (id) on delete cascade,
   origin text not null,
   destination text not null,
-  cargo_type text not null default '',
+
+  -- Progressive form fields — see CompanyDrawer.tsx's "Rates Received" section. Transport
+  -- mode gates which of load_type/container_type vs vehicle_type/capacity/service_type
+  -- apply; cargo_type gates whether hazmat_class is asked for.
+  transport_mode text not null default '',
+  load_type text not null default '',
+  container_type text not null default '',
   vehicle_type text not null default '',
+  capacity text not null default '',
+  cargo_type text not null default '',
+  hazmat_class text not null default '',
+  service_type text not null default '',
+  delivery_scope text not null default '',
+
   rate numeric,
   dem_ft text not null default '',
   notes text not null default '',

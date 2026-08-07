@@ -7,8 +7,15 @@ import type { RateQuote } from '@/types/company';
 export type NewRateQuoteInput = {
   origin: string;
   destination: string;
-  cargo_type: string;
+  transport_mode: string;
+  load_type: string;
+  container_type: string;
   vehicle_type: string;
+  capacity: string;
+  cargo_type: string;
+  hazmat_class: string;
+  service_type: string;
+  delivery_scope: string;
   rate: number | null;
   dem_ft: string;
   notes: string;

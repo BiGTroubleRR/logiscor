@@ -30,8 +30,15 @@ export async function POST(request: Request) {
         companyId?: string;
         origin?: string;
         destination?: string;
-        cargoType?: string;
+        transportMode?: string;
+        loadType?: string;
+        containerType?: string;
         vehicleType?: string;
+        capacity?: string;
+        cargoType?: string;
+        hazmatClass?: string;
+        serviceType?: string;
+        deliveryScope?: string;
         rate?: number | null;
         demFt?: string;
         notes?: string;
@@ -45,8 +52,15 @@ export async function POST(request: Request) {
     const quote = await addRateQuote(body.companyId, {
       origin: body.origin.trim(),
       destination: body.destination.trim(),
-      cargo_type: body.cargoType?.trim() ?? '',
+      transport_mode: body.transportMode?.trim() ?? '',
+      load_type: body.loadType?.trim() ?? '',
+      container_type: body.containerType?.trim() ?? '',
       vehicle_type: body.vehicleType?.trim() ?? '',
+      capacity: body.capacity?.trim() ?? '',
+      cargo_type: body.cargoType?.trim() ?? '',
+      hazmat_class: body.hazmatClass?.trim() ?? '',
+      service_type: body.serviceType?.trim() ?? '',
+      delivery_scope: body.deliveryScope?.trim() ?? '',
       rate: typeof body.rate === 'number' && Number.isFinite(body.rate) ? body.rate : null,
       dem_ft: body.demFt?.trim() ?? '',
       notes: body.notes?.trim() ?? '',
