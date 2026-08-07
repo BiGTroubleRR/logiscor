@@ -394,6 +394,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   // ---- drawer ----
   const setDraft = useCallback((patch: Partial<DrawerDraft>) => setDraftState((d) => ({ ...d, ...patch })), []);
 
+  // Every caller passes the id of a company already present in `companies` (a clicked table
+  // row, a duplicate-match link, etc.), so the synchronous lookup here is safe. The one caller
+  // that used to violate that — addCompany(), opening a company it had just created in the
+  // same tick, before `companies` had caught up — now builds its own drawer/edit state
+  // directly from the API response instead of going through this function.
   const openDrawer = useCallback(
     (id: string) => {
       const c = companies.find((x) => x.id === id);
@@ -526,14 +531,35 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, [selectedId, editDraft, runMutation]);
 
   // ---- list-level actions ----
+  // Builds the drawer/edit state directly from `created` rather than going through
+  // openDrawer()/startEditDetails() — both of those read from `companies`/`selected`, which
+  // are still one render behind immediately after setRawCompanies(). Using the freshly-created
+  // row's own fields sidesteps that staleness entirely.
   const addCompany = useCallback(async () => {
     const created = await runMutation(() => api.createCompany());
-    if (created) {
-      setRawCompanies((list) => [created, ...list]);
-      openDrawer(created.id);
-      setTimeout(startEditDetails, 0);
-    }
-  }, [runMutation, openDrawer, startEditDetails]);
+    if (!created) return;
+    setRawCompanies((list) => [created, ...list]);
+    setSelectedId(created.id);
+    setActivityLog([]);
+    setActivityLoading(false);
+    setEditingDetails(true);
+    setEditError('');
+    setEditDraftState({
+      name: created.name,
+      type: created.type,
+      country: created.country,
+      region: created.region,
+      city: created.city,
+      lat: String(created.lat),
+      lng: String(created.lng),
+      website: created.website,
+      phone: created.phone,
+      email: created.email,
+      mulda_presence: created.mulda_presence,
+      pending_review: created.pending_review,
+      description: created.description,
+    });
+  }, [runMutation]);
 
   const deleteCompanyAction = useCallback(
     async (id: string) => {
