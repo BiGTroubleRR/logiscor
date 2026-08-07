@@ -1,7 +1,7 @@
 // SERVER ONLY. Never import this from a client component.
 //
 // This app has no browser-side Supabase client at all: every page and mutation goes through a
-// Next.js Route Handler that first checks the caller's Clerk session (src/lib/role.ts), then
+// Next.js Route Handler that first checks the caller's Supabase session (src/lib/role.ts), then
 // talks to Postgres with the service-role key, which bypasses RLS entirely. See the note atop
 // supabase/schema.sql for why — RLS has no policies for anon/authenticated, so the service-role
 // key is the only way in or out.

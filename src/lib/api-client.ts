@@ -1,5 +1,5 @@
 // Thin fetch wrappers the client components call. Every request hits a Route Handler under
-// src/app/api/companies/, which re-checks the Clerk session server-side — see src/lib/role.ts.
+// src/app/api/companies/, which re-checks the Supabase session server-side — see src/lib/role.ts.
 import type { ActivityLogEntry, ActivityType, Company, NewCompanyInput } from '@/types/company';
 import type { Identity } from '@/lib/role';
 

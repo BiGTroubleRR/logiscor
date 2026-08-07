@@ -1,4 +1,4 @@
-// List, create, edit-details, and delete companies. Every handler checks the Clerk session
+// List, create, edit-details, and delete companies. Every handler checks the Supabase session
 // itself (proxy.ts already gates the whole app, but Server Functions should never rely on
 // that alone) and then reads/writes with the service-role key — see admin-server.ts.
 import { NextResponse } from 'next/server';

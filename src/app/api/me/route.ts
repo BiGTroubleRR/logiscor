@@ -1,5 +1,5 @@
 // Replaces the prototype's plain "Role" dropdown — the signed-in user's role now comes from
-// their real Clerk identity (src/lib/role.ts), not a client-side select anyone could flip.
+// their real Supabase identity (src/lib/role.ts), not a client-side select anyone could flip.
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 

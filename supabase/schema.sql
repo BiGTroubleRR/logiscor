@@ -1,17 +1,40 @@
 -- Carrier CRM — Supabase schema
 -- Run this once in the Supabase dashboard's SQL Editor (Project → SQL Editor → New query).
 --
--- Auth model: this is an internal tool, not a public site. Every user is staff, signed in
--- through Clerk (see src/proxy.ts). Rather than wiring Supabase's RLS to understand Clerk's
--- JWT (which needs extra dashboard config on both sides and is easy to get subtly wrong),
--- every read and write goes through a Next.js Route Handler that checks the Clerk session
--- server-side and then talks to Postgres with the service-role key. That's why RLS below is
--- enabled but has NO policies for anon/authenticated: the anon key (the only key ever shipped
--- to the browser) cannot read or write a single row. Only the service-role key — which never
--- leaves the server — can, and it bypasses RLS entirely. If you later want direct
--- client-side Supabase Realtime subscriptions, that requires configuring Clerk as a Supabase
--- Third-Party Auth provider and adding real policies; until then, the app polls/refetches
--- after mutations for "live enough" updates across teammates.
+-- Auth model: this is an internal tool, not a public site. Every user signs in with
+-- Supabase Auth (email/password — see src/contexts/AuthContext.tsx). `companies` and
+-- `activity_log` still have RLS enabled with NO anon/authenticated policies: every read and
+-- write on those two tables goes through a Next.js Route Handler that checks the caller's
+-- Supabase session server-side (src/lib/role.ts) and then talks to Postgres with the
+-- service-role key, which bypasses RLS. `profiles` (below) is the one table the browser's
+-- anon key IS allowed to read directly — just its own row, so the UI can show a name/role
+-- without a round trip through a Route Handler.
+--
+-- Role management is intentionally basic: everyone signs up as 'staff'; promoting someone to
+-- 'manager' (the only role that can edit strength scores) is a manual SQL update —
+--   update public.profiles set role = 'manager' where email = 'someone@example.com';
+-- — there is no admin UI for this yet.
+
+-- ---------------------------------------------------------------------------
+-- profiles — one row per auth.users row. Provisioned lazily by src/lib/role.ts (an upsert on
+-- the first identity check after sign-up) rather than a database trigger on auth.users — one
+-- less moving part to keep in sync with the schema.
+-- ---------------------------------------------------------------------------
+create table if not exists public.profiles (
+  id uuid primary key references auth.users (id) on delete cascade,
+  email text not null default '',
+  role text not null default 'staff' check (role in ('manager', 'staff')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_select_own" on public.profiles;
+create policy "profiles_select_own" on public.profiles
+  for select using (auth.uid() = id);
+
+-- No insert/update policy for anon/authenticated: the upsert in role.ts always runs through
+-- the service-role client, which bypasses RLS.
 
 -- ---------------------------------------------------------------------------
 -- companies — one row per carrier/manufacturer/port/warehouse lead.

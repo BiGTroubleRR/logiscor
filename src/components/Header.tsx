@@ -1,12 +1,20 @@
 'use client';
 
-import { UserButton } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import { useCrm } from '@/contexts/CrmContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const tabBase = { border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 13, fontWeight: 600 as const, cursor: 'pointer' as const };
 
 export default function Header() {
   const { view, setView, filtered, companies, loading, identity } = useCrm();
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    router.push('/sign-in');
+  }
 
   return (
     <div
@@ -70,7 +78,13 @@ export default function Header() {
         {identity && (
           <span style={{ fontSize: 11, color: '#94a3b8' }}>{identity.role === 'manager' ? 'Procurement Manager' : 'Ops Staff'}</span>
         )}
-        <UserButton />
+        <span style={{ fontSize: 12, color: '#cbd5e1', whiteSpace: 'nowrap' }}>{user?.email}</span>
+        <button
+          onClick={handleSignOut}
+          style={{ border: 'none', background: 'none', color: '#64748b', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+        >
+          Sign out
+        </button>
       </div>
     </div>
   );

@@ -37,6 +37,13 @@ type ActivityLogRow = {
   created_at: string;
 };
 
+type ProfileRow = {
+  id: string;
+  email: string;
+  role: string;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -50,6 +57,12 @@ export type Database = {
         Row: ActivityLogRow;
         Insert: Partial<ActivityLogRow> & { company_id: string; type: string; author: string; summary: string };
         Update: Partial<ActivityLogRow>;
+        Relationships: [];
+      };
+      profiles: {
+        Row: ProfileRow;
+        Insert: Partial<ProfileRow> & { id: string };
+        Update: Partial<ProfileRow>;
         Relationships: [];
       };
     };

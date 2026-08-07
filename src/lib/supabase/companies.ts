@@ -1,6 +1,6 @@
 // SERVER ONLY. Data access for the companies + activity_log tables, always via the
 // service-role client (see admin-server.ts). Every function here assumes the caller has
-// already checked the Clerk session — see src/lib/role.ts and the Route Handlers under
+// already checked the Supabase session — see src/lib/role.ts and the Route Handlers under
 // src/app/api/companies/.
 import { createAdminClient } from './admin-server';
 import type { Company, ActivityLogEntry, NewCompanyInput, ActivityType } from '@/types/company';

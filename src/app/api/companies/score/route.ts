@@ -1,6 +1,6 @@
 // Strength-score edits are Procurement-Manager-only. This is the ONE place that rule is
 // actually enforced — the drawer's disabled slider is just UX, not security. See
-// src/lib/role.ts for how "manager" is decided from Clerk metadata.
+// src/lib/role.ts for how "manager" is decided from the profiles table.
 import { NextResponse } from 'next/server';
 import { requireManager } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
