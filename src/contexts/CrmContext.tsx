@@ -18,7 +18,6 @@ export type FilterState = {
   region: string;
   capability: string;
   trailerType: string;
-  pendingOnly: boolean;
   duplicatesOnly: boolean;
   minStrength: number;
   search: string;
@@ -30,7 +29,6 @@ const DEFAULT_FILTERS: FilterState = {
   region: 'all',
   capability: 'all',
   trailerType: 'all',
-  pendingOnly: false,
   duplicatesOnly: false,
   minStrength: 0,
   search: '',
@@ -266,7 +264,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.region === 'all' || c.region === filters.region) &&
         (filters.capability === 'all' || c.capability_tags.includes(filters.capability)) &&
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
-        (!filters.pendingOnly || c.pending_review) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (!route.active || c.routeMatch) &&
         (!route.active || (getDisplayScore(c) ?? 0) >= filters.minStrength) &&

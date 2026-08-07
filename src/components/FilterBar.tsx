@@ -92,11 +92,6 @@ export default function FilterBar() {
       </select>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
-        <input type="checkbox" checked={filters.pendingOnly} onChange={() => setFilters({ pendingOnly: !filters.pendingOnly })} />
-        Pending review only
-      </label>
-
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.duplicatesOnly} onChange={() => setFilters({ duplicatesOnly: !filters.duplicatesOnly })} />
         Possible duplicates only {duplicateCount ? `(${duplicateCount})` : ''}
       </label>
