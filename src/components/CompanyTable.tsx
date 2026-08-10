@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { formatTag, getDisplayScore, tierColor, typeColor } from '@/lib/format';
+import { formatTag, tierColor, typeColor } from '@/lib/format';
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
@@ -49,7 +49,7 @@ function Row({ c }: { c: CompanyView }) {
   const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route } = useCrm();
   const { locale, t } = useLocale();
   const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
-  const score = getDisplayScore(c);
+  const score = c.strength_score;
   const tier = tierColor(score);
   const visibleTags = c.capability_tags.slice(0, 2);
   const extraCount = c.capability_tags.length - 2;
@@ -142,7 +142,6 @@ function Row({ c }: { c: CompanyView }) {
           <span style={{ fontWeight: 600, fontSize: 12, width: 24, textAlign: 'right', color: '#334155' }}>{score ?? t.table.dash}</span>
         </div>
       </td>
-      <td style={{ ...td, textAlign: 'center', color: '#334155', fontWeight: 600 }}>{c.route_score ?? t.table.dash}</td>
       <td style={td}>
         {c.trailer_types.length === 0 ? (
           <span style={{ color: '#cbd5e1' }}>{t.table.dash}</span>
@@ -227,7 +226,6 @@ export default function CompanyTable() {
               <SortHeader label={t.table.colRegionCity} sortKey="region" />
               <th style={thStyleNoSort}>{t.table.colCapabilities}</th>
               <SortHeader label={t.table.colStrength} sortKey="strength_score" />
-              <SortHeader label={t.table.colRouteScore} sortKey="route_score" />
               <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>
               <SortHeader label={distanceLabel} sortKey="distance_km" />
               <th style={thStyleNoSort}>{t.table.colColor}</th>

@@ -19,7 +19,6 @@ export default function FilterBar() {
     capabilityOptions,
     trailerTypeOptions,
     duplicateCount,
-    route,
     filtered,
     addCompany,
   } = useCrm();
@@ -99,21 +98,6 @@ export default function FilterBar() {
         <input type="checkbox" checked={filters.duplicatesOnly} onChange={() => setFilters({ duplicatesOnly: !filters.duplicatesOnly })} />
         {t.filterBar.possibleDuplicatesOnly(duplicateCount)}
       </label>
-
-      {route.active && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#334155' }}>
-          <span>{t.filterBar.minRelevance(filters.minStrength)}</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={filters.minStrength}
-            onChange={(e) => setFilters({ minStrength: Number(e.target.value) })}
-            style={{ width: 100 }}
-          />
-        </div>
-      )}
 
       <button onClick={clearFilters} style={linkButtonStyle}>
         {t.filterBar.clearFilters}

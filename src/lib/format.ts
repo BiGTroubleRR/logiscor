@@ -52,7 +52,3 @@ const ACTIVITY_TYPE_COLORS: Record<ActivityType, string> = {
 export function activityTypeColor(type: ActivityType): string {
   return ACTIVITY_TYPE_COLORS[type] ?? '#64748b';
 }
-
-export function getDisplayScore(c: { strength_score: number | null; route_score?: number | null }): number | null {
-  return c.strength_score ?? c.route_score ?? null;
-}

@@ -112,7 +112,9 @@ export default function CompanyDrawer() {
 
   return (
     <>
-      <div onClick={closeDrawer} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 40 }} />
+      {/* Leaflet's own panes/controls (MapView.tsx) use z-index up to ~1000, so the drawer needs
+          to clear that or the map paints on top of it — see the "map in front of the drawer" bug. */}
+      <div onClick={closeDrawer} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', zIndex: 1900 }} />
       <div
         style={{
           position: 'fixed',
@@ -122,7 +124,7 @@ export default function CompanyDrawer() {
           width: 460,
           background: '#fff',
           boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
-          zIndex: 50,
+          zIndex: 2000,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',

@@ -43,3 +43,12 @@ button {
   background: transparent;
   border: none;
 }
+
+/* Company-name labels under each marker — hidden until MapView.tsx toggles .lgs-show-labels on
+   the map container past LABEL_MIN_ZOOM, so they don't clutter the view at low zoom. */
+.leaflet-container .lgs-marker-label {
+  display: none;
+}
+.leaflet-container.lgs-show-labels .lgs-marker-label {
+  display: block;
+}

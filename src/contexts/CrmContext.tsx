@@ -5,8 +5,7 @@ import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType,
 import type { Identity } from '@/lib/role';
 import { haversineKm, spreadOverlappingCoords } from '@/lib/geo';
 import { computeDuplicateFlags } from '@/lib/duplicates';
-import { getDisplayScore } from '@/lib/format';
-import { scoreCompanyAgainstRoute, type RouteScoreResult } from '@/lib/route-score';
+import { matchCompanyAgainstRoute, type RouteMatchResult } from '@/lib/route-match';
 import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
@@ -21,7 +20,6 @@ export type FilterState = {
   capability: string;
   trailerType: string;
   duplicatesOnly: boolean;
-  minStrength: number;
   search: string;
 };
 
@@ -32,11 +30,10 @@ const DEFAULT_FILTERS: FilterState = {
   capability: 'all',
   trailerType: 'all',
   duplicatesOnly: false,
-  minStrength: 0,
   search: '',
 };
 
-export type SortKey = 'name' | 'type' | 'country' | 'region' | 'strength_score' | 'route_score' | 'distance_km';
+export type SortKey = 'name' | 'type' | 'country' | 'region' | 'strength_score' | 'distance_km';
 export type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
 export type RouteState = {
@@ -47,7 +44,6 @@ export type RouteState = {
   path: LatLng[] | null;
   hasDirections: boolean;
   corridorKm: number;
-  cargoType: string;
   active: boolean;
   loading: boolean;
   error: string;
@@ -64,7 +60,6 @@ const DEFAULT_ROUTE: RouteState = {
   path: null,
   hasDirections: false,
   corridorKm: 50,
-  cargoType: '',
   active: false,
   loading: false,
   error: '',
@@ -161,7 +156,6 @@ type CrmContextValue = {
   route: RouteState;
   setRouteField: (patch: Partial<RouteState>) => void;
   setCorridorKm: (km: number) => void;
-  setCargoType: (cargoType: string) => void;
   runRouteSearch: () => Promise<void>;
   clearRoute: () => void;
 
@@ -222,7 +216,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [filters, setFiltersState] = useState<FilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' });
   const [route, setRoute] = useState<RouteState>(DEFAULT_ROUTE);
-  const [routeScores, setRouteScores] = useState<Map<string, RouteScoreResult>>(new Map());
+  const [routeMatches, setRouteMatches] = useState<Map<string, RouteMatchResult>>(new Map());
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
@@ -267,25 +261,23 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- derived: companies with display coords, duplicate flags, and ephemeral route scores ----
+  // ---- derived: companies with display coords, duplicate flags, and ephemeral route matches ----
   const companies = useMemo<CompanyView[]>(() => {
     const spread = spreadOverlappingCoords(rawCompanies);
     const withDuplicates = computeDuplicateFlags(spread);
     const originCoord = route.originCoord;
     const destCoord = route.destCoord;
     return withDuplicates.map((c) => {
-      const rs = routeScores.get(c.id);
+      const rm = routeMatches.get(c.id);
       return {
         ...c,
-        route_score: rs?.route_score ?? null,
-        route_distance_km: rs?.route_distance_km ?? null,
-        routeMatch: rs?.routeMatch ?? false,
-        route_cargo_match: rs?.route_cargo_match ?? false,
+        route_distance_km: rm?.route_distance_km ?? null,
+        routeMatch: rm?.routeMatch ?? false,
         distance_to_origin_km: originCoord ? Math.round(haversineKm(c.lat, c.lng, originCoord.lat, originCoord.lng) * 10) / 10 : null,
         distance_to_dest_km: destCoord ? Math.round(haversineKm(c.lat, c.lng, destCoord.lat, destCoord.lng) * 10) / 10 : null,
       };
     });
-  }, [rawCompanies, routeScores, route.originCoord, route.destCoord]);
+  }, [rawCompanies, routeMatches, route.originCoord, route.destCoord]);
 
   // Union of the preset list and whatever's actually in use, so staff can pick a capability
   // that's never been used yet instead of only ones already present in the data.
@@ -326,7 +318,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (!route.active || c.routeMatch) &&
-        (!route.active || (getDisplayScore(c) ?? 0) >= filters.minStrength) &&
         (search === '' || c.name.toLowerCase().includes(search) || c.city.toLowerCase().includes(search)),
     );
   }, [companies, filters, route.active]);
@@ -334,8 +325,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const sorted = useMemo(() => {
     const key = sort.key;
     return [...filtered].sort((a, b) => {
-      const av = key === 'strength_score' ? getDisplayScore(a) : (a as unknown as Record<string, unknown>)[key];
-      const bv = key === 'strength_score' ? getDisplayScore(b) : (b as unknown as Record<string, unknown>)[key];
+      const av = (a as unknown as Record<string, unknown>)[key];
+      const bv = (b as unknown as Record<string, unknown>)[key];
       const cmp = typeof av === 'string' && typeof bv === 'string' ? av.localeCompare(bv) : ((av as number) ?? -1) - ((bv as number) ?? -1);
       return sort.dir === 'asc' ? cmp : -cmp;
     });
@@ -372,13 +363,13 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const setRouteField = useCallback((patch: Partial<RouteState>) => setRoute((r) => ({ ...r, ...patch })), []);
 
   const recomputeRouteMatches = useCallback(
-    (originCoord: LatLng, destCoord: LatLng, path: LatLng[] | null, corridorKm: number, cargoType: string) => {
+    (originCoord: LatLng, destCoord: LatLng, path: LatLng[] | null, corridorKm: number) => {
       const usePath = path && path.length >= 2 ? path : [originCoord, destCoord];
-      const next = new Map<string, RouteScoreResult>();
+      const next = new Map<string, RouteMatchResult>();
       rawCompanies.forEach((c) => {
-        next.set(c.id, scoreCompanyAgainstRoute(c, usePath, corridorKm, cargoType));
+        next.set(c.id, matchCompanyAgainstRoute(c, usePath, corridorKm));
       });
-      setRouteScores(next);
+      setRouteMatches(next);
     },
     [rawCompanies],
   );
@@ -410,7 +401,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const runRouteSearch = useCallback(async () => {
-    const { originText, destText, corridorKm, cargoType } = route;
+    const { originText, destText, corridorKm } = route;
     if (!originText.trim() || !destText.trim()) return;
     setRoute((r) => ({ ...r, loading: true, error: '' }));
     const [origin, dest] = await Promise.all([geocodePlace(originText), geocodePlace(destText)]);
@@ -431,7 +422,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       loading: false,
       error: directions ? '' : t.routeSearch.errorNoDirections,
     }));
-    recomputeRouteMatches(origin, dest, path, corridorKm, cargoType);
+    recomputeRouteMatches(origin, dest, path, corridorKm);
   }, [route, geocodePlace, fetchDirections, recomputeRouteMatches, t]);
 
   const clearRoute = useCallback(() => {
@@ -443,33 +434,22 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       path: null,
       hasDirections: false,
       routeInfo: null,
-      cargoType: '',
       error: '',
     }));
-    setRouteScores(new Map());
+    setRouteMatches(new Map());
   }, []);
 
-  // Corridor/cargo knobs recompute scores immediately on change while a search is active —
+  // The corridor slider recomputes matches immediately on change while a search is active —
   // triggered from the setter itself rather than an effect, so there's no synchronous setState
   // cascade. Origin/dest changes go through runRouteSearch instead (needs a fresh geocode call).
   const setCorridorKm = useCallback(
     (corridorKm: number) => {
       setRoute((r) => ({ ...r, corridorKm }));
       if (route.active && route.originCoord && route.destCoord) {
-        recomputeRouteMatches(route.originCoord, route.destCoord, route.path, corridorKm, route.cargoType);
+        recomputeRouteMatches(route.originCoord, route.destCoord, route.path, corridorKm);
       }
     },
-    [route.active, route.originCoord, route.destCoord, route.path, route.cargoType, recomputeRouteMatches],
-  );
-
-  const setCargoType = useCallback(
-    (cargoType: string) => {
-      setRoute((r) => ({ ...r, cargoType }));
-      if (route.active && route.originCoord && route.destCoord) {
-        recomputeRouteMatches(route.originCoord, route.destCoord, route.path, route.corridorKm, cargoType);
-      }
-    },
-    [route.active, route.originCoord, route.destCoord, route.path, route.corridorKm, recomputeRouteMatches],
+    [route.active, route.originCoord, route.destCoord, route.path, recomputeRouteMatches],
   );
 
   // ---- drawer ----
@@ -489,7 +469,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setEditDraftState(null);
       setEditError('');
       setDraftState({
-        strength: c.strength_score ?? c.route_score ?? 0,
+        strength: c.strength_score ?? 0,
         rationale: c.strength_rationale,
         tagChoice: '',
         trailerTypeChoice: '',
@@ -876,7 +856,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     route,
     setRouteField,
     setCorridorKm,
-    setCargoType,
     runRouteSearch,
     clearRoute,
     selectedId,

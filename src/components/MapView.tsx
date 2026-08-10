@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { getDisplayScore, tierColor } from '@/lib/format';
+import { tierColor } from '@/lib/format';
 import type { CompanyView } from '@/types/company';
 import type * as LeafletNS from 'leaflet';
 
@@ -13,6 +13,14 @@ import type * as LeafletNS from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+// Company-name labels under each marker only render past this zoom — below it there are
+// hundreds of markers on screen at once and labels would be unreadable clutter.
+const LABEL_MIN_ZOOM = 12;
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 function debounce<T extends (...args: never[]) => void>(fn: T, wait: number): T {
   let timer: ReturnType<typeof setTimeout>;
@@ -43,11 +51,15 @@ function initialFitBounds(companies: { lat: number; lng: number }[]): [[number, 
 // crashes during SSR — so the library itself is dynamic-imported inside an effect (client-only),
 // never as a static top-level import. Only the CSS above and this type-only import are static.
 function markerIcon(L: typeof LeafletNS, c: CompanyView): LeafletNS.DivIcon {
-  const score = getDisplayScore(c);
+  const score = c.strength_score;
   const tier = tierColor(score);
   const size = score == null ? 16 : 18 + Math.round((score / 100) * 16);
   const fontSize = size <= 20 ? 9 : 10;
-  const html = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${tier.bar};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-weight:700;">${score ?? ''}</div>`;
+  const html = `
+    <div style="position:relative;width:${size}px;height:${size}px;">
+      <div style="width:${size}px;height:${size}px;border-radius:50%;background:${tier.bar};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-weight:700;">${score ?? ''}</div>
+      <div class="lgs-marker-label" style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(255,255,255,0.92);color:#0f172a;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.25);">${escapeHtml(c.name)}</div>
+    </div>`;
   return L.divIcon({ html, className: 'lgs-marker-icon', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
@@ -88,8 +100,8 @@ export default function MapView() {
 
   function getOrCreateMarker(c: CompanyView): LeafletNS.Marker {
     const L = leafletRef.current!;
-    const score = getDisplayScore(c);
-    const iconKey = tierColor(score).bar + ':' + score;
+    const score = c.strength_score;
+    const iconKey = tierColor(score).bar + ':' + score + ':' + c.name;
 
     let m = markerMapRef.current.get(c.id);
     if (!m) {
@@ -161,6 +173,7 @@ export default function MapView() {
       const markers = visible.map((c) => getOrCreateMarker(c));
       clusterGroupRef.current.clearLayers();
       clusterGroupRef.current.addLayers(markers);
+      map.getContainer().classList.toggle('lgs-show-labels', map.getZoom() >= LABEL_MIN_ZOOM);
     }, 150);
 
     map.on('moveend', updateVisibleMarkers);
@@ -187,6 +200,7 @@ export default function MapView() {
       map.fitBounds(initialFitBounds(filtered));
       boundsFitRef.current = true;
     }
+    map.getContainer().classList.toggle('lgs-show-labels', map.getZoom() >= LABEL_MIN_ZOOM);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leafletReady, filtered, route.active, route.originCoord, route.destCoord, route.path]);
 

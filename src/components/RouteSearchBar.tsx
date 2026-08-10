@@ -3,12 +3,10 @@
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { darkInputStyle, tealButtonStyle, outlineButtonStyle } from '@/lib/styles';
-import { formatTag } from '@/lib/format';
-import { translateOption } from '@/lib/i18n/option-labels';
 
 export default function RouteSearchBar() {
-  const { route, setRouteField, setCorridorKm, setCargoType, runRouteSearch, clearRoute, capabilityOptions } = useCrm();
-  const { locale, t } = useLocale();
+  const { route, setRouteField, setCorridorKm, runRouteSearch, clearRoute } = useCrm();
+  const { t } = useLocale();
 
   return (
     <div
@@ -41,14 +39,6 @@ export default function RouteSearchBar() {
         placeholder={t.routeSearch.destinationPlaceholder}
         style={{ ...darkInputStyle, width: 150 }}
       />
-      <select value={route.cargoType} onChange={(e) => setCargoType(e.target.value)} style={darkInputStyle}>
-        <option value="">{t.routeSearch.anyCargoType}</option>
-        {capabilityOptions.map((o) => (
-          <option key={o.value} value={o.value}>
-            {locale === 'cs' ? translateOption(formatTag(o.label), 'cs') : formatTag(o.label)}
-          </option>
-        ))}
-      </select>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
         <span>{t.routeSearch.corridor(route.corridorKm)}</span>
         <input
