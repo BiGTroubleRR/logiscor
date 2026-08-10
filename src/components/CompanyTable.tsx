@@ -6,7 +6,17 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { formatTag, getDisplayScore, tierColor, typeColor } from '@/lib/format';
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
+import { getEmailQuality } from '@/lib/email-quality';
 import type { CompanyView } from '@/types/company';
+import type { Dict } from '@/lib/i18n/en';
+
+function emailBadge(c: CompanyView, t: Dict): { label: string; title: string; bg: string; fg: string } | null {
+  const quality = getEmailQuality(c);
+  if (quality === 'generic') return { label: t.table.genericEmail, title: t.table.genericEmailHint, bg: '#fef3c7', fg: '#92400e' };
+  if (quality === 'missing') return { label: t.table.noEmail, title: t.table.noEmailHint, bg: '#fee2e2', fg: '#991b1b' };
+  if (quality === 'incomplete') return { label: t.table.incompleteInfo, title: t.table.incompleteInfoHint, bg: '#3f3f46', fg: '#fff' };
+  return null;
+}
 
 const thStyle: CSSProperties = {
   padding: '10px 14px',
@@ -45,6 +55,7 @@ function Row({ c }: { c: CompanyView }) {
   const extraCount = c.capability_tags.length - 2;
   const visibleTrailerTypes = c.trailer_types.slice(0, 2);
   const extraTrailerTypeCount = c.trailer_types.length - 2;
+  const emailFlag = emailBadge(c, t);
 
   const rowStyle: CSSProperties = c.isDuplicate
     ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }
@@ -77,21 +88,34 @@ function Row({ c }: { c: CompanyView }) {
               </button>
             </>
           )}
+          {emailFlag && (
+            <span
+              title={emailFlag.title}
+              style={{ background: emailFlag.bg, color: emailFlag.fg, fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}
+            >
+              {emailFlag.label}
+            </span>
+          )}
         </div>
       </td>
       <td style={td}>
-        <span
-          style={{
-            background: `${typeColor(c.type)}1a`,
-            color: typeColor(c.type),
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '3px 9px',
-            borderRadius: 999,
-          }}
-        >
-          {trTag(c.type)}
-        </span>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {(c.types.length ? c.types : [c.type]).map((tp) => (
+            <span
+              key={tp}
+              style={{
+                background: `${typeColor(tp)}1a`,
+                color: typeColor(tp),
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '3px 9px',
+                borderRadius: 999,
+              }}
+            >
+              {trTag(tp)}
+            </span>
+          ))}
+        </div>
       </td>
       <td style={{ ...td, color: '#334155' }}>{translateOption(c.country, locale)}</td>
       <td style={{ ...td, color: '#334155' }}>

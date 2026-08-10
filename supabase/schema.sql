@@ -43,6 +43,13 @@ create policy "profiles_select_own" on public.profiles
 create table if not exists public.companies (
   id text primary key,
   type text not null default 'carrier' check (type in ('carrier', 'manufacturer', 'port', 'warehouse')),
+
+  -- Full classification, which can include more than just `type` (a carrier that also runs
+  -- warehouse services, say). `type` stays as the primary/legacy single value — used for the
+  -- header badge color and sort — while `types` drives the multi-badge display, filtering, and
+  -- the drawer's editable chip list. Always backfilled to at least [type].
+  types text[] not null default '{}',
+
   name text not null,
   country text not null default '',
   region text not null default '',

@@ -19,6 +19,7 @@ export async function insertCompany(input: NewCompanyInput & { id: string }): Pr
     .from('companies')
     .insert({
       ...input,
+      types: [input.type],
       industries: '',
       lanes: '',
       capability_tags: [],
@@ -48,6 +49,7 @@ export async function insertCompaniesBatch(rows: ImportedCompanyRow[], source: s
       rows.map((row) => ({
         ...row,
         id: crypto.randomUUID(),
+        types: [row.type],
         industries: '',
         lanes: '',
         distance_km: null,
@@ -78,6 +80,7 @@ export async function duplicateCompany(original: Company, newName: string): Prom
       id: crypto.randomUUID(),
       name: newName,
       type: original.type,
+      types: original.types,
       country: original.country,
       region: original.region,
       city: original.city,
@@ -138,6 +141,13 @@ export async function updateTrailerTypes(id: string, types: string[]): Promise<C
     .eq('id', id)
     .select('*')
     .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function updateCompanyTypes(id: string, types: string[]): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from('companies').update({ types }).eq('id', id).select('*').single();
   if (error) throw error;
   return data as unknown as Company;
 }

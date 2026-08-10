@@ -1,6 +1,7 @@
 type CompanyRow = {
   id: string;
   type: string;
+  types: string[];
   name: string;
   country: string;
   region: string;

@@ -9,6 +9,9 @@ export type Role = 'manager' | 'staff';
 export type Company = {
   id: string;
   type: CompanyType;
+  // Full classification — usually includes `type`, but a company can be more than one thing
+  // (e.g. a carrier that also runs warehouse services). `type` stays the primary/legacy value.
+  types: CompanyType[];
   name: string;
   country: string;
   region: string;

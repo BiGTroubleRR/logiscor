@@ -89,6 +89,7 @@ export type DrawerDraft = {
   rationale: string;
   tagChoice: string;
   trailerTypeChoice: string;
+  companyTypeChoice: string;
   activityType: ActivityType;
   activityNote: string;
   rateOrigin: string;
@@ -172,6 +173,8 @@ type CrmContextValue = {
   removeTag: (tag: string) => Promise<void>;
   addTrailerType: () => Promise<void>;
   removeTrailerType: (type: string) => Promise<void>;
+  addCompanyType: () => Promise<void>;
+  removeCompanyType: (type: string) => Promise<void>;
   addActivity: () => Promise<void>;
   addRateQuote: () => Promise<void>;
   deleteRateQuoteAction: (id: string) => Promise<void>;
@@ -221,6 +224,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     rationale: '',
     tagChoice: '',
     trailerTypeChoice: '',
+    companyTypeChoice: '',
     activityType: 'Call',
     activityNote: '',
     ...EMPTY_RATE_DRAFT_FIELDS,
@@ -287,7 +291,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   );
 
   const typeOptions = useMemo(
-    () => Array.from(new Set(companies.map((c) => c.type))).sort().map((t) => ({ value: t, label: t })),
+    () => Array.from(new Set(companies.flatMap((c) => c.types))).sort().map((t) => ({ value: t, label: t })),
     [companies],
   );
   const countryOptions = useMemo(
@@ -305,7 +309,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     const search = filters.search.trim().toLowerCase();
     return companies.filter(
       (c) =>
-        (filters.type === 'all' || c.type === filters.type) &&
+        (filters.type === 'all' || c.types.includes(filters.type as CompanyType)) &&
         (filters.country === 'all' || c.country === filters.country) &&
         (filters.region === 'all' || c.region === filters.region) &&
         (filters.capability === 'all' || c.capability_tags.includes(filters.capability)) &&
@@ -481,6 +485,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         rationale: c.strength_rationale,
         tagChoice: '',
         trailerTypeChoice: '',
+        companyTypeChoice: '',
         activityType: 'Call',
         activityNote: '',
         ...EMPTY_RATE_DRAFT_FIELDS,
@@ -550,6 +555,26 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       if (!selectedId || !selected) return;
       const types = selected.trailer_types.filter((t) => t !== type);
       const updated = await runMutation(() => api.saveTrailerTypes(selectedId, types));
+      if (updated) patchCompanyLocal(updated);
+    },
+    [selectedId, selected, runMutation],
+  );
+
+  const addCompanyType = useCallback(async () => {
+    if (!selectedId || !draft.companyTypeChoice || !selected) return;
+    const types = [...selected.types, draft.companyTypeChoice as CompanyType];
+    const updated = await runMutation(() => api.saveCompanyTypes(selectedId, types));
+    if (updated) {
+      patchCompanyLocal(updated);
+      setDraftState((d) => ({ ...d, companyTypeChoice: '' }));
+    }
+  }, [selectedId, draft.companyTypeChoice, selected, runMutation]);
+
+  const removeCompanyType = useCallback(
+    async (type: string) => {
+      if (!selectedId || !selected || selected.types.length <= 1) return;
+      const types = selected.types.filter((t) => t !== type);
+      const updated = await runMutation(() => api.saveCompanyTypes(selectedId, types));
       if (updated) patchCompanyLocal(updated);
     },
     [selectedId, selected, runMutation],
@@ -825,6 +850,8 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     removeTag,
     addTrailerType,
     removeTrailerType,
+    addCompanyType,
+    removeCompanyType,
     addActivity,
     addRateQuote,
     deleteRateQuoteAction,

@@ -79,6 +79,8 @@ export default function CompanyDrawer() {
     allTrailerTypes,
     addTrailerType,
     removeTrailerType,
+    addCompanyType,
+    removeCompanyType,
     activityLog,
     activityLoading,
     addActivity,
@@ -105,6 +107,8 @@ export default function CompanyDrawer() {
 
   const availableTagChoices = allCapabilities.filter((c) => !selected.capability_tags.includes(c));
   const availableTrailerTypeChoices = allTrailerTypes.filter((tt) => !selected.trailer_types.includes(tt));
+  const ALL_COMPANY_TYPES: CompanyType[] = ['carrier', 'manufacturer', 'port', 'warehouse'];
+  const availableCompanyTypeChoices = ALL_COMPANY_TYPES.filter((ct) => !selected.types.includes(ct));
 
   return (
     <>
@@ -128,7 +132,7 @@ export default function CompanyDrawer() {
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{selected.name}</div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-              {trTag(selected.type)} · {selected.city}, {translateOption(selected.country, locale)}
+              {(selected.types.length ? selected.types : [selected.type]).map((tp) => trTag(tp)).join(' / ')} · {selected.city}, {translateOption(selected.country, locale)}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
@@ -211,6 +215,44 @@ export default function CompanyDrawer() {
               </button>
             </div>
           )}
+
+          {/* Company Types — a company can be more than one thing (e.g. a carrier that also
+              runs warehouse services), so this is a chip list like Trailer Types/Capability
+              Tags rather than the old single-select. */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.companyTypes}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(selected.types.length ? selected.types : [selected.type]).map((tp) => (
+                <span key={tp} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {trTag(tp)}
+                  {selected.types.length > 1 && (
+                    <button onClick={() => removeCompanyType(tp)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                      ✕
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            {availableCompanyTypeChoices.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                <select
+                  value={draft.companyTypeChoice}
+                  onChange={(e) => setDraft({ companyTypeChoice: e.target.value })}
+                  style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
+                >
+                  <option value="">{t.drawer.addCompanyTypePlaceholder}</option>
+                  {availableCompanyTypeChoices.map((ct) => (
+                    <option key={ct} value={ct}>
+                      {trTag(ct)}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={addCompanyType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                  {t.drawer.add}
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Details */}
           <div>
