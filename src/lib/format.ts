@@ -11,6 +11,14 @@ export function formatDate(iso: string | null | undefined, locale: string = 'en-
   return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+export function formatDateTime(iso: string | null | undefined, locale: string = 'en-US'): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const date = d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  const time = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+  return `${date}, ${time}`;
+}
+
 export type TierKey = 'unscored' | 'strong' | 'medium' | 'weak';
 export type Tier = { fg: string; bg: string; bar: string; tierKey: TierKey };
 

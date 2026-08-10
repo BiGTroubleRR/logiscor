@@ -3,7 +3,7 @@
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
-import { activityTypeColor, formatDate, formatTag, tierColor } from '@/lib/format';
+import { activityTypeColor, formatDate, formatDateTime, formatTag, tierColor } from '@/lib/format';
 import { translateOption } from '@/lib/i18n/option-labels';
 import type { ActivityType, CompanyType } from '@/types/company';
 import {
@@ -270,7 +270,7 @@ export default function CompanyDrawer() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
                   <Field label={t.drawer.region} value={selected.region || t.drawer.notRecorded} />
                   <Field label={t.drawer.coordinates} value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
-                  <Field label={t.drawer.lastUpdated} value={formatDate(selected.updated_at, dateLocale)} />
+                  <Field label={t.drawer.lastUpdated} value={formatDateTime(selected.updated_at, dateLocale)} />
                   <Field label={t.drawer.website} value={selected.website || t.drawer.dash} />
                   <Field label={t.drawer.phone} value={selected.phone || t.drawer.dash} />
                   <Field label={t.drawer.email} value={selected.email || t.drawer.dash} span2 />
