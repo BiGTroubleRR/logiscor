@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { formatTag, tierColor, typeColor } from '@/lib/format';
+import { formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
@@ -168,6 +168,7 @@ function Row({ c }: { c: CompanyView }) {
           t.table.dash
         )}
       </td>
+      <td style={{ ...td, color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDateTime(c.updated_at, locale === 'cs' ? 'cs-CZ' : 'en-US')}</td>
       <td style={{ ...td, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
         <select
           value={c.label_color}
@@ -228,6 +229,7 @@ export default function CompanyTable() {
               <SortHeader label={t.table.colStrength} sortKey="strength_score" />
               <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>
               <SortHeader label={distanceLabel} sortKey="distance_km" />
+              <SortHeader label={t.table.colLastModified} sortKey="updated_at" />
               <th style={thStyleNoSort}>{t.table.colColor}</th>
               <th style={thStyleRight} />
             </tr>

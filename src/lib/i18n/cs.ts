@@ -89,6 +89,7 @@ export const cs: Dict = {
     colCapabilities: 'Schopnosti',
     colStrength: 'Síla',
     colTrailerTypes: 'Typy návěsů',
+    colLastModified: 'Poslední úprava',
     colColor: 'Barva',
     genericEmail: 'Obecný e-mail',
     genericEmailHint: 'Obecná/skupinová adresa (info@, sales@, ...) — nemusí vést ke skutečné osobě.',

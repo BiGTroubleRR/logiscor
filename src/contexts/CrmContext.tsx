@@ -33,7 +33,7 @@ const DEFAULT_FILTERS: FilterState = {
   search: '',
 };
 
-export type SortKey = 'name' | 'type' | 'country' | 'region' | 'strength_score' | 'distance_km';
+export type SortKey = 'name' | 'type' | 'country' | 'region' | 'strength_score' | 'distance_km' | 'updated_at';
 export type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
 export type RouteState = {

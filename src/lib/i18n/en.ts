@@ -82,6 +82,7 @@ export const en = {
     colCapabilities: 'Capabilities',
     colStrength: 'Strength',
     colTrailerTypes: 'Trailer Types',
+    colLastModified: 'Last Modified',
     colColor: 'Color',
     genericEmail: 'Generic email',
     genericEmailHint: 'Generic/role-based address (info@, sales@, ...) — may not reach a real contact.',
