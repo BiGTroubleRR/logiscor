@@ -8,7 +8,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 const tabBase = { border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 13, fontWeight: 600 as const, cursor: 'pointer' as const };
 
 export default function Header() {
-  const { view, setView, filtered, companies, loading, identity } = useCrm();
+  const { view, setView, openBinView, filtered, companies, loading, identity } = useCrm();
   const { user, signOut } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const router = useRouter();
@@ -67,6 +67,12 @@ export default function Header() {
           style={{ ...tabBase, background: view === 'map' ? '#0d9488' : 'transparent', color: view === 'map' ? '#fff' : '#94a3b8' }}
         >
           {t.header.mapView}
+        </button>
+        <button
+          onClick={openBinView}
+          style={{ ...tabBase, background: view === 'bin' ? '#0d9488' : 'transparent', color: view === 'bin' ? '#fff' : '#94a3b8' }}
+        >
+          {t.bin.tabLabel}
         </button>
       </div>
 

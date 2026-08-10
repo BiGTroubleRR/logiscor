@@ -43,6 +43,29 @@ export async function deleteCompanyApi(id: string): Promise<void> {
   await unwrap<{ ok: true }>(res, 'ok');
 }
 
+export async function fetchBinCompanies(): Promise<Company[]> {
+  const res = await fetch('/api/companies/bin', { cache: 'no-store' });
+  return unwrap<Company[]>(res, 'companies');
+}
+
+export async function restoreCompanyApi(id: string): Promise<Company> {
+  const res = await fetch('/api/companies/bin', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  return unwrap<Company>(res, 'company');
+}
+
+export async function permanentlyDeleteCompanyApi(id: string): Promise<void> {
+  const res = await fetch('/api/companies/bin', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  await unwrap<{ ok: true }>(res, 'ok');
+}
+
 export async function saveStrengthScore(id: string, score: number, rationale: string): Promise<Company> {
   const res = await fetch('/api/companies/score', {
     method: 'PATCH',

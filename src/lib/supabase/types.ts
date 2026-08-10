@@ -26,6 +26,7 @@ type CompanyRow = {
   strength_rationale: string;
   duplicate_dismissed: boolean;
   label_color: string;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 };

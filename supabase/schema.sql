@@ -98,6 +98,12 @@ create table if not exists public.companies (
   -- or '' for no color. Unconstrained text (no CHECK), same reasoning as capability_tags.
   label_color text not null default '',
 
+  -- Soft delete: "Delete company" sets this instead of removing the row, so a company (and
+  -- its activity_log/rate_quotes, never actually touched) can be restored from the Bin view.
+  -- null means active; listCompanies() filters on this being null. No auto-purge job — the
+  -- Bin is manually managed (restore or permanently delete) rather than time-expiring.
+  deleted_at timestamptz,
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -108,6 +114,7 @@ alter table public.companies enable row level security;
 create index if not exists companies_type_idx on public.companies (type);
 create index if not exists companies_country_idx on public.companies (country);
 create index if not exists companies_pending_review_idx on public.companies (pending_review) where pending_review;
+create index if not exists companies_deleted_at_idx on public.companies (deleted_at);
 
 create or replace function public.set_updated_at()
 returns trigger

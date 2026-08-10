@@ -8,7 +8,23 @@ import type { ImportedCompanyRow } from '@/lib/company-import';
 
 export async function listCompanies(): Promise<Company[]> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as Company[];
+}
+
+// The Bin — companies soft-deleted via deleteCompany() below, restorable via restoreCompany().
+export async function listDeletedCompanies(): Promise<Company[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as Company[];
 }
@@ -185,7 +201,35 @@ export async function setStrengthScore(id: string, score: number, rationale: str
   return data as unknown as Company;
 }
 
-export async function deleteCompany(id: string): Promise<void> {
+// Soft delete — moves the row into the Bin rather than removing it, so it (and its
+// activity_log/rate_quotes, never touched by this) can come back via restoreCompany().
+export async function deleteCompany(id: string): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('companies')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function restoreCompany(id: string): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('companies')
+    .update({ deleted_at: null })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+// The one truly irreversible delete — only reachable from within the Bin, on a company
+// that's already soft-deleted.
+export async function permanentlyDeleteCompany(id: string): Promise<void> {
   const supabase = createAdminClient();
   const { error } = await supabase.from('companies').delete().eq('id', id);
   if (error) throw error;

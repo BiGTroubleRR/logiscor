@@ -129,8 +129,14 @@ type CrmContextValue = {
   identity: Identity | null;
   loading: boolean;
   loadError: string;
-  view: 'list' | 'map';
-  setView: (v: 'list' | 'map') => void;
+  view: 'list' | 'map' | 'bin';
+  setView: (v: 'list' | 'map' | 'bin') => void;
+
+  binCompanies: Company[];
+  binLoading: boolean;
+  openBinView: () => void;
+  restoreCompanyAction: (id: string) => Promise<void>;
+  permanentlyDeleteCompanyAction: (id: string) => Promise<void>;
 
   companies: CompanyView[];
   filtered: CompanyView[];
@@ -208,7 +214,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [rawCompanies, setRawCompanies] = useState<Company[]>([]);
   const [mutationError, setMutationError] = useState('');
 
-  const [view, setView] = useState<'list' | 'map'>('list');
+  const [view, setView] = useState<'list' | 'map' | 'bin'>('list');
+  const [binCompanies, setBinCompanies] = useState<Company[]>([]);
+  const [binLoading, setBinLoading] = useState(false);
   const [filters, setFiltersState] = useState<FilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' });
   const [route, setRoute] = useState<RouteState>(DEFAULT_ROUTE);
@@ -783,6 +791,37 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [rawCompanies, runMutation, selectedId, closeDrawer, t],
   );
 
+  const openBinView = useCallback(() => {
+    setView('bin');
+    setBinLoading(true);
+    api
+      .fetchBinCompanies()
+      .then(setBinCompanies)
+      .catch(() => setBinCompanies([]))
+      .finally(() => setBinLoading(false));
+  }, []);
+
+  const restoreCompanyAction = useCallback(
+    async (id: string) => {
+      const restored = await runMutation(() => api.restoreCompanyApi(id));
+      if (restored) {
+        setBinCompanies((list) => list.filter((c) => c.id !== id));
+        setRawCompanies((list) => [restored, ...list]);
+      }
+    },
+    [runMutation],
+  );
+
+  const permanentlyDeleteCompanyAction = useCallback(
+    async (id: string) => {
+      const c = binCompanies.find((x) => x.id === id);
+      if (c && !window.confirm(t.errors.confirmPermanentlyDeleteCompany(c.name))) return;
+      const ok = await runMutation(() => api.permanentlyDeleteCompanyApi(id));
+      if (ok !== null) setBinCompanies((list) => list.filter((x) => x.id !== id));
+    },
+    [binCompanies, runMutation, t],
+  );
+
   const dismissDuplicate = useCallback(
     async (id: string) => {
       const updated = await runMutation(() => api.setDuplicateDismissedApi(id, true));
@@ -813,6 +852,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     loadError,
     view,
     setView,
+    binCompanies,
+    binLoading,
+    openBinView,
+    restoreCompanyAction,
+    permanentlyDeleteCompanyAction,
     companies,
     filtered,
     sorted,

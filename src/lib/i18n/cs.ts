@@ -283,7 +283,20 @@ export const cs: Dict = {
     nameRequired: 'Název je povinný.',
     latLngMustBeNumbers: 'Zeměpisná šířka a délka musí být čísla.',
     couldNotSaveRetry: 'Uložení se nezdařilo — zkuste to znovu.',
-    confirmDeleteCompany: (name) => `Odstranit „${name}“? Tuto akci nelze vrátit zpět.`,
+    confirmDeleteCompany: (name) => `Odstranit „${name}“? Později ji můžete obnovit z Koše.`,
+    confirmPermanentlyDeleteCompany: (name) => `Trvale odstranit „${name}“? Tuto akci nelze vrátit zpět.`,
+  },
+
+  bin: {
+    tabLabel: 'Koš',
+    title: 'Koš',
+    subtitle: 'Odstraněné společnosti lze obnovit nebo trvale odstranit.',
+    empty: 'Koš je prázdný.',
+    loading: 'Načítání…',
+    deletedOn: (date) => `Odstraněno ${date}`,
+    restore: 'Obnovit',
+    deleteForever: 'Trvale odstranit',
+    backToList: 'Zpět na seznam',
   },
 
   importValidation: {

@@ -248,7 +248,20 @@ export const en = {
     nameRequired: 'Name is required.',
     latLngMustBeNumbers: 'Latitude and longitude must be numbers.',
     couldNotSaveRetry: 'Could not save — please try again.',
-    confirmDeleteCompany: (name: string) => `Delete "${name}"? This cannot be undone.`,
+    confirmDeleteCompany: (name: string) => `Delete "${name}"? You can restore it later from the Bin.`,
+    confirmPermanentlyDeleteCompany: (name: string) => `Permanently delete "${name}"? This cannot be undone.`,
+  },
+
+  bin: {
+    tabLabel: 'Bin',
+    title: 'Bin',
+    subtitle: 'Deleted companies can be restored or permanently removed.',
+    empty: 'The Bin is empty.',
+    loading: 'Loading…',
+    deletedOn: (date: string) => `Deleted ${date}`,
+    restore: 'Restore',
+    deleteForever: 'Delete forever',
+    backToList: 'Back to list',
   },
 
   importValidation: {
