@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { primaryButtonStyle, editInputStyle } from '@/lib/styles';
 
 export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const { signIn, signUp } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +31,7 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       const { error, needsEmailConfirm } = await signUp(email, password);
       setSubmitting(false);
       if (error) setError(error);
-      else if (needsEmailConfirm) setNotice('Check your email to confirm your account, then sign in.');
+      else if (needsEmailConfirm) setNotice(t.auth.checkEmail);
       else router.push('/');
     }
   }
@@ -44,15 +46,15 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           <div style={{ width: 30, height: 30, borderRadius: 7, background: '#0d9488', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff' }}>
             C
           </div>
-          <div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a' }}>Carrier CRM</div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: '#0f172a' }}>{t.auth.appName}</div>
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>Email</span>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.auth.email}</span>
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} style={editInputStyle} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>Password</span>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.auth.password}</span>
           <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} style={editInputStyle} />
         </label>
 
@@ -60,17 +62,19 @@ export default function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         {notice && <div style={{ fontSize: 12, color: '#166534' }}>{notice}</div>}
 
         <button type="submit" disabled={submitting} style={{ ...primaryButtonStyle, padding: '10px 14px', opacity: submitting ? 0.6 : 1 }}>
-          {mode === 'sign-in' ? 'Sign in' : 'Create account'}
+          {mode === 'sign-in' ? t.auth.signIn : t.auth.createAccount}
         </button>
 
         <div style={{ fontSize: 12, color: '#64748b', textAlign: 'center' }}>
           {mode === 'sign-in' ? (
             <>
-              No account? <Link href="/sign-up">Sign up</Link>
+              {t.auth.noAccountPrefix}
+              <Link href="/sign-up">{t.auth.signUp}</Link>
             </>
           ) : (
             <>
-              Already have an account? <Link href="/sign-in">Sign in</Link>
+              {t.auth.haveAccountPrefix}
+              <Link href="/sign-in">{t.auth.signIn}</Link>
             </>
           )}
         </div>

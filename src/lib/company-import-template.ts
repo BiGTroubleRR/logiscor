@@ -2,9 +2,10 @@
 // separate from company-import.ts (parsing/validation) since this side never runs against
 // untrusted input — it only ever writes a file this app generated itself.
 import ExcelJS from 'exceljs';
-import { IMPORT_HEADERS, IMPORT_COLUMN_NOTES } from './company-import';
+import { IMPORT_HEADERS, getImportColumnNotes, getReadMeHeaders } from './company-import';
+import type { Locale } from '@/lib/i18n/locale';
 
-export async function downloadImportTemplate(): Promise<void> {
+export async function downloadImportTemplate(locale: Locale = 'en'): Promise<void> {
   const workbook = new ExcelJS.Workbook();
 
   const sheet = workbook.addWorksheet('Companies');
@@ -12,10 +13,11 @@ export async function downloadImportTemplate(): Promise<void> {
   sheet.getRow(1).font = { bold: true };
   sheet.columns = IMPORT_HEADERS.map((h) => ({ width: Math.max(14, h.length + 4) }));
 
+  const columnNotes = getImportColumnNotes(locale);
   const notes = workbook.addWorksheet('Read me');
-  notes.addRow(['Column', 'Notes']);
+  notes.addRow(getReadMeHeaders(locale));
   notes.getRow(1).font = { bold: true };
-  IMPORT_HEADERS.forEach((h) => notes.addRow([h, IMPORT_COLUMN_NOTES[h] || '']));
+  IMPORT_HEADERS.forEach((h) => notes.addRow([h, columnNotes[h] || '']));
   notes.columns = [{ width: 18 }, { width: 60 }];
 
   const buffer = await workbook.xlsx.writeBuffer();

@@ -1,6 +1,7 @@
 'use client';
 
 import { CrmProvider, useCrm } from '@/contexts/CrmContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import Header from './Header';
 import RouteSearchBar from './RouteSearchBar';
 import FilterBar from './FilterBar';
@@ -10,6 +11,7 @@ import CompanyDrawer from './CompanyDrawer';
 
 function CrmShell() {
   const { view, loading, loadError, mutationError } = useCrm();
+  const { t } = useLocale();
 
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#0f172a' }}>
@@ -26,7 +28,7 @@ function CrmShell() {
       {loadError ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', fontSize: 13 }}>{loadError}</div>
       ) : loading ? (
-        <div style={{ flex: 1, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading carriers...</div>
+        <div style={{ flex: 1, padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{t.crmApp.loadingCarriers}</div>
       ) : view === 'list' ? (
         <CompanyTable />
       ) : (

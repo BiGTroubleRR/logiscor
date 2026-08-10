@@ -79,11 +79,11 @@ export async function setLabelColorApi(id: string, color: string): Promise<Compa
   return unwrap<Company>(res, 'company');
 }
 
-export async function importCompanies(rows: ImportedCompanyRow[]): Promise<{ companies: Company[]; rowErrors: ImportRowError[] }> {
+export async function importCompanies(rows: ImportedCompanyRow[], locale: string): Promise<{ companies: Company[]; rowErrors: ImportRowError[] }> {
   const res = await fetch('/api/companies/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rows }),
+    body: JSON.stringify({ rows, locale }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status}).`);

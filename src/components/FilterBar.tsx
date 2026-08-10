@@ -1,8 +1,10 @@
 'use client';
 
 import { useCrm } from '@/contexts/CrmContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { lightSelectStyle, linkButtonStyle, outlineButtonStyle, primaryButtonStyle } from '@/lib/styles';
 import { formatTag } from '@/lib/format';
+import { translateOption } from '@/lib/i18n/option-labels';
 import { companiesToCsv, downloadCsv } from '@/lib/csv';
 import ImportCompaniesButton from './ImportCompaniesButton';
 
@@ -21,6 +23,8 @@ export default function FilterBar() {
     filtered,
     addCompany,
   } = useCrm();
+  const { locale, t } = useLocale();
+  const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
 
   const emailAddrs = Array.from(new Set(filtered.map((c) => c.email).filter(Boolean)));
   const emailHref = emailAddrs.length ? 'mailto:' + emailAddrs.map(encodeURIComponent).join(',') : undefined;
@@ -42,30 +46,30 @@ export default function FilterBar() {
         type="text"
         value={filters.search}
         onChange={(e) => setFilters({ search: e.target.value })}
-        placeholder="Search name or city..."
+        placeholder={t.filterBar.searchPlaceholder}
         style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 10px', fontSize: 13, width: 190 }}
       />
 
       <select value={filters.type} onChange={(e) => setFilters({ type: e.target.value })} style={lightSelectStyle}>
-        <option value="all">All types</option>
+        <option value="all">{t.filterBar.allTypes}</option>
         {typeOptions.map((o) => (
           <option key={o.value} value={o.value}>
-            {formatTag(o.label)}
+            {trTag(o.label)}
           </option>
         ))}
       </select>
 
       <select value={filters.country} onChange={(e) => setFilters({ country: e.target.value })} style={lightSelectStyle}>
-        <option value="all">All countries</option>
+        <option value="all">{t.filterBar.allCountries}</option>
         {countryOptions.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {translateOption(o.label, locale)}
           </option>
         ))}
       </select>
 
       <select value={filters.region} onChange={(e) => setFilters({ region: e.target.value })} style={lightSelectStyle}>
-        <option value="all">All regions</option>
+        <option value="all">{t.filterBar.allRegions}</option>
         {regionOptions.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -74,31 +78,31 @@ export default function FilterBar() {
       </select>
 
       <select value={filters.capability} onChange={(e) => setFilters({ capability: e.target.value })} style={lightSelectStyle}>
-        <option value="all">All capabilities</option>
+        <option value="all">{t.filterBar.allCapabilities}</option>
         {capabilityOptions.map((o) => (
           <option key={o.value} value={o.value}>
-            {formatTag(o.label)}
+            {trTag(o.label)}
           </option>
         ))}
       </select>
 
       <select value={filters.trailerType} onChange={(e) => setFilters({ trailerType: e.target.value })} style={lightSelectStyle}>
-        <option value="all">All trailer types</option>
+        <option value="all">{t.filterBar.allTrailerTypes}</option>
         {trailerTypeOptions.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {translateOption(o.label, locale)}
           </option>
         ))}
       </select>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.duplicatesOnly} onChange={() => setFilters({ duplicatesOnly: !filters.duplicatesOnly })} />
-        Possible duplicates only {duplicateCount ? `(${duplicateCount})` : ''}
+        {t.filterBar.possibleDuplicatesOnly(duplicateCount)}
       </label>
 
       {route.active && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#334155' }}>
-          <span>Min relevance {filters.minStrength}</span>
+          <span>{t.filterBar.minRelevance(filters.minStrength)}</span>
           <input
             type="range"
             min={0}
@@ -112,7 +116,7 @@ export default function FilterBar() {
       )}
 
       <button onClick={clearFilters} style={linkButtonStyle}>
-        Clear filters
+        {t.filterBar.clearFilters}
       </button>
 
       <div style={{ flex: 1 }} />
@@ -128,17 +132,17 @@ export default function FilterBar() {
           fontWeight: 600,
         }}
       >
-        ✉ Email Filtered ({emailAddrs.length})
+        {t.filterBar.emailFiltered(emailAddrs.length)}
       </button>
       <button
         onClick={() => downloadCsv(companiesToCsv(filtered))}
         style={{ ...outlineButtonStyle, background: '#fff', color: '#0f172a', fontWeight: 600 }}
       >
-        ⬇ Export CSV
+        {t.filterBar.exportCsv}
       </button>
       <ImportCompaniesButton />
       <button onClick={addCompany} style={primaryButtonStyle}>
-        + Add Company
+        {t.filterBar.addCompany}
       </button>
     </div>
   );

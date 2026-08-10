@@ -1,0 +1,147 @@
+// Czech display labels for preset dropdown values that stay stored in English in the
+// database (trailer types, capability tags, rate-quote options, row colors, countries) — see
+// the "translate labels only" decision: filtering/duplicate-detection/CSV export all match on
+// the English value, so only the label shown to Czech-mode users changes here.
+//
+// Not every capability_tag or country in the live dataset is guaranteed to appear in this
+// list — it covers the preset lists plus the values seeded from carriers-data.js. Anything
+// missing falls back to showing the raw English value (see translateOption below).
+const CS_LABELS: Record<string, string> = {
+  // Company types (also in en/cs.ts companyTypes, kept here too for anywhere raw values flow
+  // through trTag's formatTag-then-lookup path, which normalizes to Title Case before this
+  // lookup runs — hence both the raw lowercase and Title Case forms are covered).
+  carrier: 'Dopravce',
+  manufacturer: 'Výrobce',
+  port: 'Přístav',
+  warehouse: 'Sklad',
+  Manufacturer: 'Výrobce',
+  Port: 'Přístav',
+  Warehouse: 'Sklad',
+
+  // Trailer types (src/lib/trailer-types.ts)
+  Flatbed: 'Valníkový návěs',
+  Curtainside: 'Plachtový návěs',
+  'Box / Dry Van': 'Skříňový návěs',
+  'Refrigerated (Reefer)': 'Chladírenský návěs (Reefer)',
+  Tanker: 'Cisternový návěs',
+  Tipper: 'Sklápěcí návěs',
+  'Low Loader': 'Podvalník',
+  'Mega Trailer': 'Mega návěs',
+  'Swap Body': 'Výměnná nástavba',
+  'Container Chassis': 'Kontejnerový podvozek',
+  'Car Carrier': 'Autotransportér',
+  Livestock: 'Přeprava dobytka',
+  Silo: 'Silo návěs',
+  'Walking Floor': 'Posuvná podlaha (Walking Floor)',
+
+  // Capability tags — presets (src/lib/capabilities.ts) plus the set seeded from carriers-data.js
+  ADR: 'ADR',
+  Carrier: 'Dopravce',
+  'General Carrier': 'Obecný dopravce',
+  'Packaging Materials (Cardboards, Plastics)': 'Obalové materiály (kartony, plasty)',
+  'Air Freight': 'Letecká přeprava',
+  Automotive: 'Automobilový průmysl',
+  Chemicals: 'Chemikálie',
+  Container: 'Kontejner',
+  'Container Shipping': 'Kontejnerová přeprava',
+  Customs: 'Celní odbavení',
+  'Food Beverage': 'Potraviny a nápoje',
+  Hazmat: 'Nebezpečné látky',
+  'Heavy Industry': 'Těžký průmysl',
+  Intermodal: 'Intermodální přeprava',
+  'Port Logistics': 'Přístavní logistika',
+  'Rail Freight': 'Železniční přeprava',
+  'Road Freight': 'Silniční přeprava',
+  'Sea Freight': 'Námořní přeprava',
+  'Steel Coils': 'Ocelové svitky',
+  Warehousing: 'Skladování',
+
+  // Rate-quote options (src/lib/rate-quote-options.ts)
+  'Ocean Freight': 'Námořní přeprava',
+  'Rail / Multimodal': 'Železniční / kombinovaná přeprava',
+  'FCL (Full Container Load)': 'FCL (celý kontejner)',
+  'LCL (Less than Container Load)': 'LCL (částečná kontejnerová zásilka)',
+  Dry: 'Suchý (Dry)',
+  Reefer: 'Chladírenský (Reefer)',
+  'Open Top': 'Otevřená střecha (Open Top)',
+  'Flat Rack': 'Plošinový (Flat Rack)',
+  'Tautliner (Curtainsider)': 'Plachtový návěs (Tautliner)',
+  'Box Truck': 'Skříňové vozidlo',
+  'Mulda (Coil Well)': 'Mulda (na svitky)',
+  'Flatbed / Lowboy': 'Valník / podvalník',
+  '3.5T': '3,5 t',
+  '7.5T': '7,5 t',
+  '12T': '12 t',
+  '24T (Standard Mega)': '24 t (standardní mega)',
+  'FTL (Full Truckload)': 'FTL (celokamionová zásilka)',
+  'LTL / Groupage (Less than Truckload)': 'LTL / sběrná služba (částečná zásilka)',
+  Express: 'Expresní',
+  'ADR / Hazmat': 'ADR / nebezpečné látky',
+  'Temperature Controlled': 'Teplotně řízené',
+  'High Value / High Risk (TAPA)': 'Vysoká hodnota / vysoké riziko (TAPA)',
+  FMCG: 'Rychloobrátkové zboží (FMCG)',
+  'Packaging Materials': 'Obalové materiály',
+  'Automotive Parts': 'Automobilové díly',
+  'Industrial Machinery': 'Průmyslové stroje',
+  'Class 1 (Explosives)': 'Třída 1 (Výbušniny)',
+  'Class 2 (Gases)': 'Třída 2 (Plyny)',
+  'Class 3 (Flammable Liquids)': 'Třída 3 (Hořlavé kapaliny)',
+  'Class 4 (Flammable Solids)': 'Třída 4 (Hořlavé tuhé látky)',
+  'Class 5 (Oxidizing Substances)': 'Třída 5 (Oxidující látky)',
+  'Class 6 (Toxic / Infectious Substances)': 'Třída 6 (Toxické / infekční látky)',
+  'Class 7 (Radioactive Material)': 'Třída 7 (Radioaktivní materiál)',
+  'Class 8 (Corrosive Substances)': 'Třída 8 (Korozivní látky)',
+  'Class 9 (Miscellaneous)': 'Třída 9 (Ostatní)',
+  'Door-to-Door': 'Dům k domu',
+  'Port-to-Port': 'Přístav k přístavu',
+  'Cross-docking': 'Cross-docking',
+  'Last-mile Delivery': 'Doručení poslední míle',
+
+  // Row colors (src/lib/row-colors.ts)
+  Red: 'Červená',
+  Orange: 'Oranžová',
+  Amber: 'Jantarová',
+  Yellow: 'Žlutá',
+  Green: 'Zelená',
+  Teal: 'Modrozelená',
+  Cyan: 'Tyrkysová',
+  Blue: 'Modrá',
+  Indigo: 'Indigová',
+  Purple: 'Fialová',
+  Pink: 'Růžová',
+  Gray: 'Šedá',
+
+  // Countries seeded from carriers-data.js
+  Austria: 'Rakousko',
+  Belgium: 'Belgie',
+  Bulgaria: 'Bulharsko',
+  Croatia: 'Chorvatsko',
+  'Czech Republic': 'Česká republika',
+  Czechia: 'Česko',
+  Estonia: 'Estonsko',
+  'Europe (unspecified)': 'Evropa (neurčeno)',
+  France: 'Francie',
+  Germany: 'Německo',
+  Hungary: 'Maďarsko',
+  Italy: 'Itálie',
+  Japan: 'Japonsko',
+  Lithuania: 'Litva',
+  Netherlands: 'Nizozemsko',
+  'North Macedonia': 'Severní Makedonie',
+  Poland: 'Polsko',
+  Romania: 'Rumunsko',
+  Serbia: 'Srbsko',
+  Slovakia: 'Slovensko',
+  Slovenia: 'Slovinsko',
+  Spain: 'Španělsko',
+  Turkey: 'Turecko',
+  'United Arab Emirates': 'Spojené arabské emiráty',
+  'United Kingdom': 'Spojené království',
+  'United States': 'Spojené státy',
+  Unknown: 'Neznámé',
+};
+
+export function translateOption(value: string, locale: 'en' | 'cs'): string {
+  if (locale !== 'cs') return value;
+  return CS_LABELS[value] ?? value;
+}

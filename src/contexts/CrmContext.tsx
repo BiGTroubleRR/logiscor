@@ -12,6 +12,7 @@ import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
+import { useLocale } from './LocaleContext';
 
 export type FilterState = {
   type: string;
@@ -197,6 +198,7 @@ type CrmContextValue = {
 const CrmContext = createContext<CrmContextValue | null>(null);
 
 export function CrmProvider({ children }: { children: ReactNode }) {
+  const { locale, t } = useLocale();
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -238,7 +240,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         setIdentity(ident);
         setRawCompanies(comps);
       } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Failed to load.');
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : t.errors.failedToLoad);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -246,6 +248,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+    // Runs once on mount only — intentionally not re-fetching on locale toggle. `t` is read at
+    // the moment the catch fires, not captured as a stale dependency worth re-running for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- derived: companies with display coords, duplicate flags, and ephemeral route scores ----
@@ -332,10 +337,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     try {
       return await fn();
     } catch (e) {
-      setMutationError(e instanceof Error ? e.message : 'Something went wrong.');
+      setMutationError(e instanceof Error ? e.message : t.errors.somethingWentWrong);
       return null;
     }
-  }, []);
+  }, [t]);
 
   function patchCompanyLocal(updated: Company) {
     setRawCompanies((list) => list.map((c) => (c.id === updated.id ? updated : c)));
@@ -398,7 +403,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setRoute((r) => ({ ...r, loading: true, error: '' }));
     const [origin, dest] = await Promise.all([geocodePlace(originText), geocodePlace(destText)]);
     if (!origin || !dest) {
-      setRoute((r) => ({ ...r, loading: false, error: 'Could not find one of those places. Try a more specific city name.' }));
+      setRoute((r) => ({ ...r, loading: false, error: t.routeSearch.errorNoPlace }));
       return;
     }
     const directions = await fetchDirections(origin, dest);
@@ -412,10 +417,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       directionsResult: directions?.result ?? null,
       active: true,
       loading: false,
-      error: directions ? '' : 'Exact driving route unavailable (Directions API) — showing a straight-line corridor instead.',
+      error: directions ? '' : t.routeSearch.errorNoDirections,
     }));
     recomputeRouteMatches(origin, dest, path, corridorKm, cargoType);
-  }, [route, geocodePlace, fetchDirections, recomputeRouteMatches]);
+  }, [route, geocodePlace, fetchDirections, recomputeRouteMatches, t]);
 
   const clearRoute = useCallback(() => {
     setRoute((r) => ({
@@ -645,13 +650,13 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const saveEditDetails = useCallback(async () => {
     if (!selectedId || !editDraft) return;
     if (!editDraft.name.trim()) {
-      setEditError('Name is required.');
+      setEditError(t.errors.nameRequired);
       return;
     }
     const lat = parseFloat(editDraft.lat);
     const lng = parseFloat(editDraft.lng);
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
-      setEditError('Latitude and longitude must be numbers.');
+      setEditError(t.errors.latLngMustBeNumbers);
       return;
     }
     const patch: NewCompanyInput = {
@@ -675,9 +680,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setEditDraftState(null);
       setEditError('');
     } else {
-      setEditError('Could not save — please try again.');
+      setEditError(t.errors.couldNotSaveRetry);
     }
-  }, [selectedId, editDraft, runMutation]);
+  }, [selectedId, editDraft, runMutation, t]);
 
   // ---- list-level actions ----
   // Builds the drawer/edit state directly from `created` rather than going through
@@ -732,25 +737,25 @@ export function CrmProvider({ children }: { children: ReactNode }) {
 
   const importCompanies = useCallback(
     async (rows: ImportedCompanyRow[]): Promise<{ importedCount: number; rowErrors: ImportRowError[] } | null> => {
-      const result = await runMutation(() => api.importCompanies(rows));
+      const result = await runMutation(() => api.importCompanies(rows, locale));
       if (!result) return null;
       setRawCompanies((list) => [...result.companies, ...list]);
       return { importedCount: result.companies.length, rowErrors: result.rowErrors };
     },
-    [runMutation],
+    [runMutation, locale],
   );
 
   const deleteCompanyAction = useCallback(
     async (id: string) => {
       const c = rawCompanies.find((x) => x.id === id);
-      if (c && !window.confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
+      if (c && !window.confirm(t.errors.confirmDeleteCompany(c.name))) return;
       const ok = await runMutation(() => api.deleteCompanyApi(id));
       if (ok !== null) {
         setRawCompanies((list) => list.filter((x) => x.id !== id));
         if (selectedId === id) closeDrawer();
       }
     },
-    [rawCompanies, runMutation, selectedId, closeDrawer],
+    [rawCompanies, runMutation, selectedId, closeDrawer, t],
   );
 
   const dismissDuplicate = useCallback(

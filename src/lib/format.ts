@@ -6,18 +6,21 @@ export function formatTag(t: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function formatDate(iso: string | null | undefined): string {
+export function formatDate(iso: string | null | undefined, locale: string = 'en-US'): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export type Tier = { fg: string; bg: string; bar: string; label: string };
+export type TierKey = 'unscored' | 'strong' | 'medium' | 'weak';
+export type Tier = { fg: string; bg: string; bar: string; tierKey: TierKey };
 
+// `tierKey` rather than a literal label — callers look the display text up in the current
+// locale's dictionary (t.tiers[tierKey]) instead of getting fixed English text back.
 export function tierColor(score: number | null | undefined): Tier {
-  if (score == null) return { fg: '#94a3b8', bg: '#f8fafc', bar: '#cbd5e1', label: 'Unscored' };
-  if (score >= 75) return { fg: '#0f766e', bg: '#ccfbf1', bar: '#0d9488', label: 'Strong' };
-  if (score >= 50) return { fg: '#92400e', bg: '#fef3c7', bar: '#d97706', label: 'Medium' };
-  return { fg: '#475569', bg: '#f1f5f9', bar: '#94a3b8', label: 'Weak' };
+  if (score == null) return { fg: '#94a3b8', bg: '#f8fafc', bar: '#cbd5e1', tierKey: 'unscored' };
+  if (score >= 75) return { fg: '#0f766e', bg: '#ccfbf1', bar: '#0d9488', tierKey: 'strong' };
+  if (score >= 50) return { fg: '#92400e', bg: '#fef3c7', bar: '#d97706', tierKey: 'medium' };
+  return { fg: '#475569', bg: '#f1f5f9', bar: '#94a3b8', tierKey: 'weak' };
 }
 
 const TYPE_COLORS: Record<string, string> = {

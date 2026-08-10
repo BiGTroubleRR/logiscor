@@ -3,12 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useCrm } from '@/contexts/CrmContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocale } from '@/contexts/LocaleContext';
 
 const tabBase = { border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 13, fontWeight: 600 as const, cursor: 'pointer' as const };
 
 export default function Header() {
   const { view, setView, filtered, companies, loading, identity } = useCrm();
   const { user, signOut } = useAuth();
+  const { locale, setLocale, t } = useLocale();
   const router = useRouter();
 
   async function handleSignOut() {
@@ -48,8 +50,8 @@ export default function Header() {
           C
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, minWidth: 0 }}>
-          <span style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' }}>Carrier CRM</span>
-          <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>Freight Procurement</span>
+          <span style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap' }}>{t.header.appName}</span>
+          <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>{t.header.tagline}</span>
         </div>
       </div>
 
@@ -58,32 +60,49 @@ export default function Header() {
           onClick={() => setView('list')}
           style={{ ...tabBase, background: view === 'list' ? '#0d9488' : 'transparent', color: view === 'list' ? '#fff' : '#94a3b8' }}
         >
-          Company List
+          {t.header.companyList}
         </button>
         <button
           onClick={() => setView('map')}
           style={{ ...tabBase, background: view === 'map' ? '#0d9488' : 'transparent', color: view === 'map' ? '#fff' : '#94a3b8' }}
         >
-          Map View
+          {t.header.mapView}
         </button>
       </div>
 
       <div style={{ flex: 1 }} />
 
       <div style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>
-        {loading ? 'loading…' : `${filtered.length} of ${companies.length} carriers`}
+        {loading ? t.header.loading : t.header.countOf(filtered.length, companies.length)}
+      </div>
+
+      <div style={{ display: 'flex', background: '#1e293b', borderRadius: 8, padding: 3, gap: 2, flex: '0 0 auto' }}>
+        <button
+          onClick={() => setLocale('en')}
+          title="English"
+          style={{ ...tabBase, padding: '7px 10px', background: locale === 'en' ? '#0d9488' : 'transparent', color: locale === 'en' ? '#fff' : '#94a3b8' }}
+        >
+          {t.header.langEnglish}
+        </button>
+        <button
+          onClick={() => setLocale('cs')}
+          title="Čeština"
+          style={{ ...tabBase, padding: '7px 10px', background: locale === 'cs' ? '#0d9488' : 'transparent', color: locale === 'cs' ? '#fff' : '#94a3b8' }}
+        >
+          {t.header.langCzech}
+        </button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
         {identity && (
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>{identity.role === 'manager' ? 'Procurement Manager' : 'Ops Staff'}</span>
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>{identity.role === 'manager' ? t.header.roleManager : t.header.roleStaff}</span>
         )}
         <span style={{ fontSize: 12, color: '#cbd5e1', whiteSpace: 'nowrap' }}>{user?.email}</span>
         <button
           onClick={handleSignOut}
           style={{ border: 'none', background: 'none', color: '#64748b', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
         >
-          Sign out
+          {t.header.signOut}
         </button>
       </div>
     </div>

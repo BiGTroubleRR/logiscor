@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { outlineButtonStyle, primaryButtonStyle } from '@/lib/styles';
 import { parseImportWorkbook } from '@/lib/company-import-parse';
 import { validateImportRows, partitionDuplicateRows, type ImportedCompanyRow, type ImportRowError } from '@/lib/company-import';
@@ -16,6 +17,7 @@ type Stage =
 
 export default function ImportCompaniesButton() {
   const { importCompanies, companies } = useCrm();
+  const { locale, t } = useLocale();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
 
@@ -23,14 +25,14 @@ export default function ImportCompaniesButton() {
     try {
       const raw = await parseImportWorkbook(file);
       if (raw.length === 0) {
-        setStage({ kind: 'error', message: 'No data rows found in that file.' });
+        setStage({ kind: 'error', message: t.importBtn.noDataRows });
         return;
       }
-      const { valid, errors } = validateImportRows(raw);
-      const { unique, duplicates } = partitionDuplicateRows(valid, companies);
+      const { valid, errors } = validateImportRows(raw, locale);
+      const { unique, duplicates } = partitionDuplicateRows(valid, companies, locale);
       setStage({ kind: 'preview', unique, invalid: errors, duplicates });
     } catch {
-      setStage({ kind: 'error', message: 'Could not read that file — make sure it\'s a .xlsx built from the template.' });
+      setStage({ kind: 'error', message: t.importBtn.couldNotRead });
     }
   }
 
@@ -38,7 +40,7 @@ export default function ImportCompaniesButton() {
     setStage({ kind: 'importing' });
     const result = await importCompanies(unique);
     if (!result) {
-      setStage({ kind: 'error', message: 'Import failed — please try again.' });
+      setStage({ kind: 'error', message: t.importBtn.importFailedRetry });
       return;
     }
     setStage({ kind: 'done', importedCount: result.importedCount, rowErrors: [...skipped, ...result.rowErrors] });
@@ -62,16 +64,16 @@ export default function ImportCompaniesButton() {
         }}
       />
       <button
-        onClick={() => downloadImportTemplate()}
+        onClick={() => downloadImportTemplate(locale)}
         style={{ ...outlineButtonStyle, background: '#fff', color: '#0f172a', fontWeight: 600 }}
       >
-        ⬇ Template
+        {t.importBtn.template}
       </button>
       <button
         onClick={() => fileInputRef.current?.click()}
         style={{ ...outlineButtonStyle, background: '#fff', color: '#0f172a', fontWeight: 600 }}
       >
-        ⬆ Import
+        {t.importBtn.importAction}
       </button>
 
       {stage.kind !== 'idle' && (
@@ -95,15 +97,11 @@ export default function ImportCompaniesButton() {
           >
             {stage.kind === 'preview' && (
               <>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Import preview</div>
-                <div style={{ fontSize: 13, color: '#334155', marginBottom: 8 }}>
-                  <strong>{stage.unique.length}</strong> {stage.unique.length === 1 ? 'row' : 'rows'} ready to import.
-                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>{t.importBtn.previewHeading}</div>
+                <div style={{ fontSize: 13, color: '#334155', marginBottom: 8 }}>{t.importBtn.rowsReadyToImport(stage.unique.length)}</div>
                 {stage.duplicates.length > 0 && (
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>
-                      {stage.duplicates.length} likely {stage.duplicates.length === 1 ? 'duplicate' : 'duplicates'} excluded automatically:
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>{t.importBtn.duplicatesExcluded(stage.duplicates.length)}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 120, overflow: 'auto' }}>
                       {stage.duplicates.map((e, i) => (
                         <div key={i} style={{ fontSize: 12, color: '#92400e' }}>
@@ -115,13 +113,11 @@ export default function ImportCompaniesButton() {
                 )}
                 {stage.invalid.length > 0 && (
                   <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#991b1b', marginBottom: 6 }}>
-                      {stage.invalid.length} {stage.invalid.length === 1 ? 'row' : 'rows'} will be skipped:
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#991b1b', marginBottom: 6 }}>{t.importBtn.rowsWillBeSkipped(stage.invalid.length)}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 160, overflow: 'auto' }}>
                       {stage.invalid.map((e, i) => (
                         <div key={i} style={{ fontSize: 12, color: '#b91c1c' }}>
-                          {e.row != null ? `Row ${e.row}: ` : ''}
+                          {e.row != null ? t.importBtn.rowPrefix(e.row) : ''}
                           {e.reason}
                         </div>
                       ))}
@@ -134,38 +130,36 @@ export default function ImportCompaniesButton() {
                     disabled={stage.unique.length === 0}
                     style={{ ...primaryButtonStyle, opacity: stage.unique.length === 0 ? 0.5 : 1 }}
                   >
-                    Import {stage.unique.length} {stage.unique.length === 1 ? 'company' : 'companies'}
+                    {t.importBtn.importCount(stage.unique.length)}
                   </button>
                   <button onClick={reset} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
-                    Cancel
+                    {t.importBtn.cancel}
                   </button>
                 </div>
               </>
             )}
 
-            {stage.kind === 'importing' && <div style={{ fontSize: 13, color: '#64748b' }}>Importing…</div>}
+            {stage.kind === 'importing' && <div style={{ fontSize: 13, color: '#64748b' }}>{t.importBtn.importing}</div>}
 
             {stage.kind === 'done' && (
               <>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Import complete</div>
-                <div style={{ fontSize: 13, color: '#166534', marginBottom: 8 }}>
-                  Imported {stage.importedCount} {stage.importedCount === 1 ? 'company' : 'companies'}.
-                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>{t.importBtn.completeHeading}</div>
+                <div style={{ fontSize: 13, color: '#166534', marginBottom: 8 }}>{t.importBtn.importedCount(stage.importedCount)}</div>
                 {stage.rowErrors.length > 0 && (
-                  <div style={{ fontSize: 12, color: '#b91c1c', marginBottom: 8 }}>{stage.rowErrors.length} row(s) were skipped — see previous step for reasons.</div>
+                  <div style={{ fontSize: 12, color: '#b91c1c', marginBottom: 8 }}>{t.importBtn.rowsSkippedNote(stage.rowErrors.length)}</div>
                 )}
                 <button onClick={reset} style={primaryButtonStyle}>
-                  Done
+                  {t.importBtn.done}
                 </button>
               </>
             )}
 
             {stage.kind === 'error' && (
               <>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Import failed</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>{t.importBtn.failedHeading}</div>
                 <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 12 }}>{stage.message}</div>
                 <button onClick={reset} style={primaryButtonStyle}>
-                  Close
+                  {t.importBtn.close}
                 </button>
               </>
             )}

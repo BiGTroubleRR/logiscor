@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { useCrm } from '@/contexts/CrmContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { loadGoogleMaps } from '@/lib/google-maps-loader';
 import { getDisplayScore, tierColor } from '@/lib/format';
 import type { CompanyView } from '@/types/company';
@@ -19,6 +20,7 @@ function debounce<T extends (...args: never[]) => void>(fn: T, wait: number): T 
 
 export default function MapView() {
   const { filtered, route, openDrawer } = useCrm();
+  const { t } = useLocale();
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const [mapsReady, setMapsReady] = useState(false);
 
@@ -132,7 +134,7 @@ export default function MapView() {
           new g.Marker({
             position: pt,
             map: gmap,
-            title: i === 0 ? 'Origin' : 'Destination',
+            title: i === 0 ? t.mapView.origin : t.mapView.destination,
             icon: { path: g.SymbolPath.BACKWARD_CLOSED_ARROW, rotation: 0, scale: 6, fillColor: i === 0 ? '#2563eb' : '#dc2626', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
           }),
       );
@@ -190,24 +192,22 @@ export default function MapView() {
       {!GOOGLE_MAPS_API_KEY && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e2e8f0' }}>
           <div style={{ background: '#fff', borderRadius: 10, padding: '24px 28px', maxWidth: 340, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 6 }}>Google Maps API key needed</div>
-            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
-              Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (with the Maps JavaScript API enabled) to plot carriers on the live map.
-            </div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 6 }}>{t.mapView.apiKeyNeeded}</div>
+            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{t.mapView.apiKeyHint}</div>
           </div>
         </div>
       )}
 
       <div style={{ position: 'absolute', top: 16, left: 16, background: '#fff', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,0,0,0.15)', padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 200 }}>
         <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>
-          {route.active ? 'Showing only companies within the searched corridor, colored by relevance.' : 'Run a route search above to score and highlight relevant companies.'}
+          {route.active ? t.mapView.corridorOnly : t.mapView.runSearchHint}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {[
-            { color: '#0d9488', label: 'Strong (75+)' },
-            { color: '#d97706', label: 'Medium (50-74)' },
-            { color: '#94a3b8', label: 'Weak (<50)' },
-            { color: '#cbd5e1', label: 'Unscored' },
+            { color: '#0d9488', label: t.mapView.legendStrong },
+            { color: '#d97706', label: t.mapView.legendMedium },
+            { color: '#94a3b8', label: t.mapView.legendWeak },
+            { color: '#cbd5e1', label: t.mapView.legendUnscored },
           ].map((row) => (
             <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#334155' }}>
               <span style={{ width: 10, height: 10, borderRadius: 999, background: row.color, display: 'inline-block' }} />

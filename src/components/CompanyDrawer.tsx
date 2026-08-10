@@ -1,8 +1,10 @@
 'use client';
 
 import { useCrm } from '@/contexts/CrmContext';
+import { useLocale } from '@/contexts/LocaleContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
 import { activityTypeColor, formatDate, formatTag, tierColor } from '@/lib/format';
+import { translateOption } from '@/lib/i18n/option-labels';
 import type { ActivityType, CompanyType } from '@/types/company';
 import {
   TRANSPORT_MODES,
@@ -34,6 +36,7 @@ function OtherableSelect({
   placeholder: string;
   onChange: (v: string) => void;
 }) {
+  const { locale, t } = useLocale();
   const isCustom = value !== '' && !options.includes(value);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -41,12 +44,12 @@ function OtherableSelect({
         <option value="">{placeholder}</option>
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {translateOption(o, locale)}
           </option>
         ))}
-        <option value={OTHER_SENTINEL}>Other (specify)</option>
+        <option value={OTHER_SENTINEL}>{t.drawer.otherSpecify}</option>
       </select>
-      {isCustom && <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Specify..." style={editInputStyle} />}
+      {isCustom && <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={t.drawer.specifyPlaceholder} style={editInputStyle} />}
     </div>
   );
 }
@@ -84,21 +87,24 @@ export default function CompanyDrawer() {
     addRateQuote,
     deleteRateQuoteAction,
   } = useCrm();
+  const { locale, t } = useLocale();
 
   if (!selected) return null;
 
   const isManager = identity?.role === 'manager';
   const tier = tierColor(draft.strength || null);
+  const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
+  const dateLocale = locale === 'cs' ? 'cs-CZ' : 'en-US';
 
   const scoreHint =
     selected.strength_score != null
-      ? 'Manually set score.'
+      ? t.drawer.manuallySetScore
       : selected.routeMatch
-        ? `Route relevance: ${selected.route_distance_km} km off route.`
-        : 'Not yet scored — run a route search, or set a manual score below.';
+        ? t.drawer.routeRelevance(selected.route_distance_km ?? 0)
+        : t.drawer.notYetScored;
 
-  const availableTagChoices = allCapabilities.filter((t) => !selected.capability_tags.includes(t));
-  const availableTrailerTypeChoices = allTrailerTypes.filter((t) => !selected.trailer_types.includes(t));
+  const availableTagChoices = allCapabilities.filter((c) => !selected.capability_tags.includes(c));
+  const availableTrailerTypeChoices = allTrailerTypes.filter((tt) => !selected.trailer_types.includes(tt));
 
   return (
     <>
@@ -122,25 +128,25 @@ export default function CompanyDrawer() {
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{selected.name}</div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-              {formatTag(selected.type)} · {selected.city}, {selected.country}
+              {trTag(selected.type)} · {selected.city}, {translateOption(selected.country, locale)}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
             <button
               onClick={() => duplicateCompanyAction(selected.id)}
-              title="Duplicate company"
+              title={t.drawer.duplicateCompany}
               style={{ border: 'none', background: '#f1f5f9', color: '#334155', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
             >
               ⧉
             </button>
             <button
               onClick={() => deleteCompanyAction(selected.id)}
-              title="Delete company"
+              title={t.drawer.deleteCompany}
               style={{ border: 'none', background: '#fef2f2', color: '#dc2626', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
             >
               🗑
             </button>
-            <button onClick={closeDrawer} title="Close" style={{ border: 'none', background: '#f1f5f9', color: '#64748b', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>
+            <button onClick={closeDrawer} title={t.drawer.close} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>
               ✕
             </button>
           </div>
@@ -150,8 +156,8 @@ export default function CompanyDrawer() {
           {/* Strength Score */}
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Strength Score</span>
-              <span style={{ background: tier.bg, color: tier.fg, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>{tier.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t.drawer.strengthScore}</span>
+              <span style={{ background: tier.bg, color: tier.fg, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>{t.tiers[tier.tierKey]}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
               <div style={{ fontSize: 34, fontWeight: 700, color: tier.bar }}>{draft.strength}</div>
@@ -170,13 +176,13 @@ export default function CompanyDrawer() {
               value={draft.rationale}
               onChange={(e) => setDraft({ rationale: e.target.value })}
               disabled={!isManager}
-              placeholder="Rationale for this score..."
+              placeholder={t.drawer.rationalePlaceholder}
               style={{ width: '100%', marginTop: 10, border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, fontSize: 13, minHeight: 60, resize: 'vertical' }}
             />
-            {!isManager && <div style={{ fontSize: 11, color: '#b45309', marginTop: 6 }}>Only Procurement Managers can edit the strength score.</div>}
+            {!isManager && <div style={{ fontSize: 11, color: '#b45309', marginTop: 6 }}>{t.drawer.managerOnlyScore}</div>}
             {isManager && (
               <button onClick={saveStrength} style={{ ...primaryButtonStyle, marginTop: 8 }}>
-                Save Score
+                {t.drawer.saveScore}
               </button>
             )}
           </div>
@@ -185,11 +191,9 @@ export default function CompanyDrawer() {
           {selected.isDuplicate && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#991b1b' }}>
-                  ⚠ Possible duplicate of {selected.duplicateMatches.length === 1 ? '1 other entry' : `${selected.duplicateMatches.length} other entries`}
-                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#991b1b' }}>{t.drawer.possibleDuplicateOf(selected.duplicateMatches.length)}</span>
                 <button onClick={() => dismissDuplicate(selected.id)} style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
-                  Not a duplicate
+                  {t.drawer.notADuplicate}
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -201,9 +205,9 @@ export default function CompanyDrawer() {
           )}
           {selected.duplicate_dismissed && selected.hasDuplicateMatch && (
             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: '#64748b' }}>Duplicate flag dismissed for this company.</span>
+              <span style={{ fontSize: 12, color: '#64748b' }}>{t.drawer.duplicateFlagDismissed}</span>
               <button onClick={() => restoreDuplicate(selected.id)} style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
-                Undo
+                {t.drawer.undo}
               </button>
             </div>
           )}
@@ -211,10 +215,10 @@ export default function CompanyDrawer() {
           {/* Details */}
           <div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Details</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t.drawer.details}</span>
               {!editingDetails && (
                 <button onClick={startEditDetails} style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                  Edit
+                  {t.drawer.edit}
                 </button>
               )}
             </div>
@@ -222,59 +226,60 @@ export default function CompanyDrawer() {
             {!editingDetails ? (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
-                  <Field label="Region" value={selected.region || 'Not recorded'} />
-                  <Field label="Coordinates" value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
-                  <Field label="Last updated" value={formatDate(selected.updated_at)} />
-                  <Field label="Website" value={selected.website || '—'} />
-                  <Field label="Phone" value={selected.phone || '—'} />
-                  <Field label="Email" value={selected.email || '—'} span2 />
+                  <Field label={t.drawer.region} value={selected.region || t.drawer.notRecorded} />
+                  <Field label={t.drawer.coordinates} value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
+                  <Field label={t.drawer.lastUpdated} value={formatDate(selected.updated_at, dateLocale)} />
+                  <Field label={t.drawer.website} value={selected.website || t.drawer.dash} />
+                  <Field label={t.drawer.phone} value={selected.phone || t.drawer.dash} />
+                  <Field label={t.drawer.email} value={selected.email || t.drawer.dash} span2 />
                 </div>
                 {selected.pending_review && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                    <span style={{ background: '#fef2f2', color: '#b91c1c', fontSize: 11, padding: '3px 8px', borderRadius: 999, fontWeight: 600 }}>Pending review</span>
+                    <span style={{ background: '#fef2f2', color: '#b91c1c', fontSize: 11, padding: '3px 8px', borderRadius: 999, fontWeight: 600 }}>{t.drawer.pendingReview}</span>
                   </div>
                 )}
                 <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginTop: 12 }}>{selected.description}</p>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
-                  Source: {selected.source} ·{' '}
+                  {t.drawer.sourcePrefix}
+                  {selected.source} ·{' '}
                   {selected.source_url ? (
                     <a href={selected.source_url} target="_blank" rel="noopener noreferrer">
-                      view source
+                      {t.drawer.viewSource}
                     </a>
                   ) : (
-                    'n/a'
+                    t.drawer.notApplicable
                   )}
                 </div>
               </>
             ) : (
               editDraft && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                  <LabeledInput label="Name" value={editDraft.name} onChange={(v) => setEditField('name', v)} />
+                  <LabeledInput label={t.drawer.name} value={editDraft.name} onChange={(v) => setEditField('name', v)} />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <span style={{ fontSize: 11, color: '#94a3b8' }}>Type</span>
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.type}</span>
                       <select value={editDraft.type} onChange={(e) => setEditField('type', e.target.value as CompanyType)} style={editInputStyle}>
-                        <option value="carrier">Carrier</option>
-                        <option value="manufacturer">Manufacturer</option>
-                        <option value="port">Port</option>
-                        <option value="warehouse">Warehouse</option>
+                        <option value="carrier">{t.companyTypes.carrier}</option>
+                        <option value="manufacturer">{t.companyTypes.manufacturer}</option>
+                        <option value="port">{t.companyTypes.port}</option>
+                        <option value="warehouse">{t.companyTypes.warehouse}</option>
                       </select>
                     </label>
-                    <LabeledInput label="Country" value={editDraft.country} onChange={(v) => setEditField('country', v)} />
-                    <LabeledInput label="Region" value={editDraft.region} onChange={(v) => setEditField('region', v)} />
-                    <LabeledInput label="City" value={editDraft.city} onChange={(v) => setEditField('city', v)} />
-                    <LabeledInput label="Latitude" value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />
-                    <LabeledInput label="Longitude" value={editDraft.lng} onChange={(v) => setEditField('lng', v)} />
-                    <LabeledInput label="Website" value={editDraft.website} onChange={(v) => setEditField('website', v)} />
-                    <LabeledInput label="Phone" value={editDraft.phone} onChange={(v) => setEditField('phone', v)} />
+                    <LabeledInput label={t.drawer.country} value={editDraft.country} onChange={(v) => setEditField('country', v)} />
+                    <LabeledInput label={t.drawer.region} value={editDraft.region} onChange={(v) => setEditField('region', v)} />
+                    <LabeledInput label={t.drawer.city} value={editDraft.city} onChange={(v) => setEditField('city', v)} />
+                    <LabeledInput label={t.drawer.latitude} value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />
+                    <LabeledInput label={t.drawer.longitude} value={editDraft.lng} onChange={(v) => setEditField('lng', v)} />
+                    <LabeledInput label={t.drawer.website} value={editDraft.website} onChange={(v) => setEditField('website', v)} />
+                    <LabeledInput label={t.drawer.phone} value={editDraft.phone} onChange={(v) => setEditField('phone', v)} />
                   </div>
-                  <LabeledInput label="Email" value={editDraft.email} onChange={(v) => setEditField('email', v)} />
+                  <LabeledInput label={t.drawer.email} value={editDraft.email} onChange={(v) => setEditField('email', v)} />
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155' }}>
                     <input type="checkbox" checked={editDraft.pending_review} onChange={() => setEditField('pending_review', !editDraft.pending_review)} />
-                    Pending review
+                    {t.drawer.pendingReview}
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>Description</span>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.description}</span>
                     <textarea
                       value={editDraft.description}
                       onChange={(e) => setEditField('description', e.target.value)}
@@ -284,10 +289,10 @@ export default function CompanyDrawer() {
                   {editError && <div style={{ fontSize: 12, color: '#b91c1c' }}>{editError}</div>}
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <button onClick={saveEditDetails} style={primaryButtonStyle}>
-                      Save
+                      {t.drawer.save}
                     </button>
                     <button onClick={cancelEditDetails} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
-                      Cancel
+                      {t.drawer.cancel}
                     </button>
                   </div>
                 </div>
@@ -297,17 +302,17 @@ export default function CompanyDrawer() {
 
           {/* Trailer Types — lives right after Details/MULDA, per how staff actually look this up */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Trailer Types</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.trailerTypes}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {selected.trailer_types.map((type) => (
                 <span key={type} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {type}
+                  {translateOption(type, locale)}
                   <button onClick={() => removeTrailerType(type)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
                     ✕
                   </button>
                 </span>
               ))}
-              {selected.trailer_types.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>None on file.</span>}
+              {selected.trailer_types.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noneOnFile}</span>}
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <select
@@ -315,26 +320,26 @@ export default function CompanyDrawer() {
                 onChange={(e) => setDraft({ trailerTypeChoice: e.target.value })}
                 style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
               >
-                <option value="">Add trailer type...</option>
-                {availableTrailerTypeChoices.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                <option value="">{t.drawer.addTrailerTypePlaceholder}</option>
+                {availableTrailerTypeChoices.map((tt) => (
+                  <option key={tt} value={tt}>
+                    {translateOption(tt, locale)}
                   </option>
                 ))}
               </select>
               <button onClick={addTrailerType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-                Add
+                {t.drawer.add}
               </button>
             </div>
           </div>
 
           {/* Capability Tags */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Capability Tags</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.capabilityTags}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {selected.capability_tags.map((tag) => (
                 <span key={tag} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {formatTag(tag)}
+                  {trTag(tag)}
                   <button onClick={() => removeTag(tag)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
                     ✕
                   </button>
@@ -343,46 +348,46 @@ export default function CompanyDrawer() {
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
               <select value={draft.tagChoice} onChange={(e) => setDraft({ tagChoice: e.target.value })} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}>
-                <option value="">Add capability...</option>
-                {availableTagChoices.map((t) => (
-                  <option key={t} value={t}>
-                    {formatTag(t)}
+                <option value="">{t.drawer.addCapabilityPlaceholder}</option>
+                {availableTagChoices.map((c) => (
+                  <option key={c} value={c}>
+                    {trTag(c)}
                   </option>
                 ))}
               </select>
               <button onClick={addTag} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-                Add
+                {t.drawer.add}
               </button>
             </div>
           </div>
 
           {/* Activity Log */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Activity Log</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.activityLog}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 12 }}>
               <select
                 value={draft.activityType}
                 onChange={(e) => setDraft({ activityType: e.target.value as ActivityType })}
                 style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12, marginBottom: 6 }}
               >
-                <option value="Call">Call</option>
-                <option value="Email">Email</option>
-                <option value="Meeting">Meeting</option>
-                <option value="Note">Note</option>
+                <option value="Call">{t.activityTypes.Call}</option>
+                <option value="Email">{t.activityTypes.Email}</option>
+                <option value="Meeting">{t.activityTypes.Meeting}</option>
+                <option value="Note">{t.activityTypes.Note}</option>
               </select>
               <textarea
                 value={draft.activityNote}
                 onChange={(e) => setDraft({ activityNote: e.target.value })}
-                placeholder="Log a call, email, meeting or note..."
+                placeholder={t.drawer.logPlaceholder}
                 style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, fontSize: 13, minHeight: 50, resize: 'vertical' }}
               />
               <button onClick={addActivity} style={{ alignSelf: 'flex-start', marginTop: 6, background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-                Add Entry
+                {t.drawer.addEntry}
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {activityLoading ? (
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>Loading…</div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
               ) : (
                 <>
                   {activityLog.map((entry) => (
@@ -398,17 +403,19 @@ export default function CompanyDrawer() {
                           height: 'fit-content',
                         }}
                       >
-                        {entry.type}
+                        {t.activityTypes[entry.type]}
                       </span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                          {formatDate(entry.entry_date)} · {entry.author}
+                          {formatDate(entry.entry_date, dateLocale)}
+                          {t.drawer.dateAuthorSep}
+                          {entry.author}
                         </div>
                         <div style={{ fontSize: 13, color: '#334155', marginTop: 2 }}>{entry.summary}</div>
                       </div>
                     </div>
                   ))}
-                  {activityLog.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>No activity logged yet.</div>}
+                  {activityLog.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noActivityYet}</div>}
                 </>
               )}
             </div>
@@ -417,28 +424,28 @@ export default function CompanyDrawer() {
           {/* Rates Received — past quotes for a specific lane, so staff have them on hand
               next time a similar route comes up. */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>Rates Received</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.ratesReceived}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <input
                   type="text"
                   value={draft.rateOrigin}
                   onChange={(e) => setDraft({ rateOrigin: e.target.value })}
-                  placeholder="Origin"
+                  placeholder={t.drawer.originPlaceholder}
                   style={editInputStyle}
                 />
                 <input
                   type="text"
                   value={draft.rateDestination}
                   onChange={(e) => setDraft({ rateDestination: e.target.value })}
-                  placeholder="Destination"
+                  placeholder={t.drawer.destinationPlaceholder}
                   style={editInputStyle}
                 />
               </div>
 
               {/* 1. Transport Mode — top-level filter; nothing below appears until this is set. */}
               <div>
-                <div style={rateSectionLabelStyle}>Transport Mode</div>
+                <div style={rateSectionLabelStyle}>{t.drawer.transportMode}</div>
                 <select
                   value={draft.rateTransportMode}
                   onChange={(e) =>
@@ -453,10 +460,10 @@ export default function CompanyDrawer() {
                   }
                   style={editInputStyle}
                 >
-                  <option value="">Select transport mode...</option>
+                  <option value="">{t.drawer.selectTransportMode}</option>
                   {TRANSPORT_MODES.map((m) => (
                     <option key={m} value={m}>
-                      {m}
+                      {translateOption(m, locale)}
                     </option>
                   ))}
                 </select>
@@ -468,22 +475,22 @@ export default function CompanyDrawer() {
                   {(draft.rateTransportMode === 'Ocean Freight' || draft.rateTransportMode === 'Rail / Multimodal') && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       <div>
-                        <div style={rateSectionLabelStyle}>Load Type</div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.loadType}</div>
                         <select value={draft.rateLoadType} onChange={(e) => setDraft({ rateLoadType: e.target.value })} style={editInputStyle}>
-                          <option value="">Select load type...</option>
-                          {LOAD_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                          <option value="">{t.drawer.selectLoadType}</option>
+                          {LOAD_TYPES.map((lt) => (
+                            <option key={lt} value={lt}>
+                              {translateOption(lt, locale)}
                             </option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <div style={rateSectionLabelStyle}>Container Type</div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.containerType}</div>
                         <OtherableSelect
                           value={draft.rateContainerType}
                           options={CONTAINER_TYPES}
-                          placeholder="Select container type..."
+                          placeholder={t.drawer.selectContainerType}
                           onChange={(v) => setDraft({ rateContainerType: v })}
                         />
                       </div>
@@ -493,22 +500,22 @@ export default function CompanyDrawer() {
                   {draft.rateTransportMode === 'Road Freight' && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       <div>
-                        <div style={rateSectionLabelStyle}>Vehicle / Body Type</div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.vehicleType}</div>
                         <select value={draft.rateVehicleType} onChange={(e) => setDraft({ rateVehicleType: e.target.value })} style={editInputStyle}>
-                          <option value="">Select vehicle type...</option>
-                          {ROAD_VEHICLE_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                          <option value="">{t.drawer.selectVehicleType}</option>
+                          {ROAD_VEHICLE_TYPES.map((vt) => (
+                            <option key={vt} value={vt}>
+                              {translateOption(vt, locale)}
                             </option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <div style={rateSectionLabelStyle}>Capacity</div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.capacity}</div>
                         <OtherableSelect
                           value={draft.rateCapacity}
                           options={ROAD_CAPACITIES}
-                          placeholder="Select capacity..."
+                          placeholder={t.drawer.selectCapacity}
                           onChange={(v) => setDraft({ rateCapacity: v })}
                         />
                       </div>
@@ -517,7 +524,7 @@ export default function CompanyDrawer() {
 
                   {/* 3. Cargo Type & Handling Requirements. */}
                   <div>
-                    <div style={rateSectionLabelStyle}>Cargo Type & Handling</div>
+                    <div style={rateSectionLabelStyle}>{t.drawer.cargoTypeHandling}</div>
                     <select
                       value={draft.rateCargoType}
                       onChange={(e) => {
@@ -526,18 +533,18 @@ export default function CompanyDrawer() {
                       }}
                       style={editInputStyle}
                     >
-                      <option value="">Select cargo type...</option>
-                      <optgroup label="Special Cargo">
-                        {SPECIAL_CARGO_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                      <option value="">{t.drawer.selectCargoType}</option>
+                      <optgroup label={t.drawer.specialCargo}>
+                        {SPECIAL_CARGO_TYPES.map((ct) => (
+                          <option key={ct} value={ct}>
+                            {translateOption(ct, locale)}
                           </option>
                         ))}
                       </optgroup>
-                      <optgroup label="General Cargo">
-                        {GENERAL_CARGO_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                      <optgroup label={t.drawer.generalCargo}>
+                        {GENERAL_CARGO_TYPES.map((ct) => (
+                          <option key={ct} value={ct}>
+                            {translateOption(ct, locale)}
                           </option>
                         ))}
                       </optgroup>
@@ -546,12 +553,12 @@ export default function CompanyDrawer() {
 
                   {draft.rateCargoType === 'ADR / Hazmat' && (
                     <div>
-                      <div style={rateSectionLabelStyle}>Hazmat Class</div>
+                      <div style={rateSectionLabelStyle}>{t.drawer.hazmatClass}</div>
                       <select value={draft.rateHazmatClass} onChange={(e) => setDraft({ rateHazmatClass: e.target.value })} style={editInputStyle}>
-                        <option value="">Select hazmat class...</option>
-                        {HAZMAT_CLASSES.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
+                        <option value="">{t.drawer.selectHazmatClass}</option>
+                        {HAZMAT_CLASSES.map((hc) => (
+                          <option key={hc} value={hc}>
+                            {translateOption(hc, locale)}
                           </option>
                         ))}
                       </select>
@@ -562,24 +569,24 @@ export default function CompanyDrawer() {
                   <div style={{ display: 'grid', gridTemplateColumns: draft.rateTransportMode === 'Road Freight' ? '1fr 1fr' : '1fr', gap: 6 }}>
                     {draft.rateTransportMode === 'Road Freight' && (
                       <div>
-                        <div style={rateSectionLabelStyle}>Road Fleet Type</div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.roadFleetType}</div>
                         <select value={draft.rateServiceType} onChange={(e) => setDraft({ rateServiceType: e.target.value })} style={editInputStyle}>
-                          <option value="">Select fleet type...</option>
-                          {ROAD_SERVICE_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                          <option value="">{t.drawer.selectFleetType}</option>
+                          {ROAD_SERVICE_TYPES.map((st) => (
+                            <option key={st} value={st}>
+                              {translateOption(st, locale)}
                             </option>
                           ))}
                         </select>
                       </div>
                     )}
                     <div>
-                      <div style={rateSectionLabelStyle}>Delivery Scope</div>
+                      <div style={rateSectionLabelStyle}>{t.drawer.deliveryScope}</div>
                       <select value={draft.rateDeliveryScope} onChange={(e) => setDraft({ rateDeliveryScope: e.target.value })} style={editInputStyle}>
-                        <option value="">Select delivery scope...</option>
-                        {DELIVERY_SCOPES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
+                        <option value="">{t.drawer.selectDeliveryScope}</option>
+                        {DELIVERY_SCOPES.map((ds) => (
+                          <option key={ds} value={ds}>
+                            {translateOption(ds, locale)}
                           </option>
                         ))}
                       </select>
@@ -593,21 +600,21 @@ export default function CompanyDrawer() {
                   type="number"
                   value={draft.rateAmount}
                   onChange={(e) => setDraft({ rateAmount: e.target.value })}
-                  placeholder="Rate (€)"
+                  placeholder={t.drawer.ratePlaceholder}
                   style={editInputStyle}
                 />
                 <input
                   type="text"
                   value={draft.rateDemFt}
                   onChange={(e) => setDraft({ rateDemFt: e.target.value })}
-                  placeholder="DEM / free time"
+                  placeholder={t.drawer.demFtPlaceholder}
                   style={editInputStyle}
                 />
               </div>
               <textarea
                 value={draft.rateNotes}
                 onChange={(e) => setDraft({ rateNotes: e.target.value })}
-                placeholder="Notes (RFQ status, date, link...)"
+                placeholder={t.drawer.notesPlaceholder}
                 style={{ ...editInputStyle, minHeight: 44, resize: 'vertical' }}
               />
               <button
@@ -625,12 +632,12 @@ export default function CompanyDrawer() {
                   opacity: !draft.rateOrigin.trim() || !draft.rateDestination.trim() ? 0.5 : 1,
                 }}
               >
-                Add Rate
+                {t.drawer.addRate}
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {rateQuotesLoading ? (
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>Loading…</div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
               ) : (
                 <>
                   {rateQuotes.map((quote) => (
@@ -641,30 +648,35 @@ export default function CompanyDrawer() {
                         </div>
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                           {quote.rate != null && <span style={{ fontWeight: 600, color: '#0f172a' }}>€{quote.rate.toLocaleString()}</span>}
-                          {quote.transport_mode && <span>{quote.transport_mode}</span>}
-                          {quote.load_type && <span>{quote.load_type}</span>}
-                          {quote.container_type && <span>{quote.container_type}</span>}
-                          {quote.vehicle_type && <span>{quote.vehicle_type}</span>}
-                          {quote.capacity && <span>{quote.capacity}</span>}
-                          {quote.cargo_type && <span>{quote.cargo_type}</span>}
-                          {quote.hazmat_class && <span>{quote.hazmat_class}</span>}
-                          {quote.service_type && <span>{quote.service_type}</span>}
-                          {quote.delivery_scope && <span>{quote.delivery_scope}</span>}
-                          {quote.dem_ft && <span>DEM/F.T.: {quote.dem_ft}</span>}
+                          {quote.transport_mode && <span>{translateOption(quote.transport_mode, locale)}</span>}
+                          {quote.load_type && <span>{translateOption(quote.load_type, locale)}</span>}
+                          {quote.container_type && <span>{translateOption(quote.container_type, locale)}</span>}
+                          {quote.vehicle_type && <span>{translateOption(quote.vehicle_type, locale)}</span>}
+                          {quote.capacity && <span>{translateOption(quote.capacity, locale)}</span>}
+                          {quote.cargo_type && <span>{translateOption(quote.cargo_type, locale)}</span>}
+                          {quote.hazmat_class && <span>{translateOption(quote.hazmat_class, locale)}</span>}
+                          {quote.service_type && <span>{translateOption(quote.service_type, locale)}</span>}
+                          {quote.delivery_scope && <span>{translateOption(quote.delivery_scope, locale)}</span>}
+                          {quote.dem_ft && (
+                            <span>
+                              {t.drawer.demFtPrefix}
+                              {quote.dem_ft}
+                            </span>
+                          )}
                         </div>
                         {quote.notes && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{quote.notes}</div>}
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{formatDate(quote.created_at)}</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{formatDate(quote.created_at, dateLocale)}</div>
                       </div>
                       <button
                         onClick={() => deleteRateQuoteAction(quote.id)}
-                        title="Delete rate"
+                        title={t.drawer.deleteRate}
                         style={{ border: 'none', background: 'none', color: '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
                       >
                         🗑
                       </button>
                     </div>
                   ))}
-                  {rateQuotes.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>No rates on file yet.</div>}
+                  {rateQuotes.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noRatesYet}</div>}
                 </>
               )}
             </div>

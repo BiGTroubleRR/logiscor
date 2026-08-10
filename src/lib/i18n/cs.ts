@@ -1,0 +1,290 @@
+import type { Dict } from './en';
+
+// Czech dictionary. Must satisfy the exact shape of `en` (see the `Dict` type check below) —
+// a missing or mistyped key here is a compile error, not a silent fallback to English.
+//
+// Czech nouns decline differently after 1 / 2-4 / 5+ (e.g. "1 řádek" / "2 řádky" / "5 řádků"),
+// unlike English's simple singular/plural. Count-based strings below branch on that directly
+// rather than using a generic pluralization engine — there are few enough of them that a
+// generic i18n plural library would be more machinery than the problem needs.
+export const cs: Dict = {
+  header: {
+    appName: 'Carrier CRM',
+    tagline: 'Nákup přepravy',
+    companyList: 'Seznam společností',
+    mapView: 'Zobrazení mapy',
+    loading: 'načítání…',
+    countOf: (filtered, total) => `${filtered} z ${total} dopravců`,
+    roleManager: 'Manažer nákupu',
+    roleStaff: 'Provozní pracovník',
+    signOut: 'Odhlásit se',
+    langEnglish: 'EN',
+    langCzech: 'CZ',
+  },
+
+  crmApp: {
+    loadingCarriers: 'Načítání dopravců...',
+  },
+
+  auth: {
+    appName: 'Carrier CRM',
+    email: 'E-mail',
+    password: 'Heslo',
+    signIn: 'Přihlásit se',
+    createAccount: 'Vytvořit účet',
+    noAccountPrefix: 'Nemáte účet? ',
+    signUp: 'Zaregistrovat se',
+    haveAccountPrefix: 'Již máte účet? ',
+    checkEmail: 'Zkontrolujte svůj e-mail a potvrďte účet, poté se přihlaste.',
+  },
+
+  filterBar: {
+    searchPlaceholder: 'Hledat název nebo město...',
+    allTypes: 'Všechny typy',
+    allCountries: 'Všechny země',
+    allRegions: 'Všechny regiony',
+    allCapabilities: 'Všechny schopnosti',
+    allTrailerTypes: 'Všechny typy návěsů',
+    possibleDuplicatesOnly: (n) => `Pouze možné duplikáty (${n})`,
+    minRelevance: (n) => `Min. relevance ${n}`,
+    clearFilters: 'Vymazat filtry',
+    emailFiltered: (n) => `✉ E-mail filtrovaným (${n})`,
+    exportCsv: '⬇ Exportovat CSV',
+    template: '⬇ Šablona',
+    import: '⬆ Import',
+    addCompany: '+ Přidat společnost',
+  },
+
+  routeSearch: {
+    heading: 'Vyhledávání trasy',
+    originPlaceholder: 'Výchozí město...',
+    destinationPlaceholder: 'Cílové město...',
+    anyCargoType: 'Jakýkoli typ nákladu',
+    corridor: (km) => `Koridor ${km} km`,
+    searching: 'Vyhledávání…',
+    search: 'Vyhledat',
+    clearRoute: 'Vymazat trasu',
+    corridorHint: 'Rozšiřte posuvník koridoru pro širší vyhledávání bez nutnosti znovu zadávat místa.',
+    errorNoPlace: 'Nepodařilo se najít jedno z těchto míst. Zkuste zadat konkrétnější název města.',
+    errorNoDirections: 'Přesná trasa jízdy není k dispozici (Directions API) — zobrazuje se přímý koridor.',
+  },
+
+  table: {
+    dup: 'DUP?',
+    possiblySameAs: (names) => `Možná stejné jako: ${names}`,
+    dismiss: 'zrušit',
+    notDuplicateDismiss: 'Není duplikát — zrušit',
+    none: 'Žádná',
+    dash: '—',
+    rowColor: 'Barva řádku',
+    deleteCompany: 'Odstranit společnost',
+    colCompany: 'Společnost',
+    colType: 'Typ',
+    colCountry: 'Země',
+    colRegionCity: 'Region / Město',
+    colCapabilities: 'Schopnosti',
+    colStrength: 'Síla',
+    colRouteScore: 'Skóre trasy',
+    colTrailerTypes: 'Typy návěsů',
+    colColor: 'Barva',
+    colDistance: 'Vzdálenost',
+    colDistanceRoute: 'Vzdálenost (Výchozí / Cíl)',
+    kmFromOrigin: (km, place) => `${km} km od „${place}“`,
+    kmFromDest: (km, place) => `${km} km od „${place}“`,
+    noMatches: 'Žádní dopravci neodpovídají těmto filtrům.',
+  },
+
+  drawer: {
+    duplicateCompany: 'Duplikovat společnost',
+    deleteCompany: 'Odstranit společnost',
+    close: 'Zavřít',
+
+    strengthScore: 'Skóre síly',
+    manuallySetScore: 'Manuálně nastavené skóre.',
+    routeRelevance: (km) => `Relevance trasy: ${km} km mimo trasu.`,
+    notYetScored: 'Ještě neohodnoceno — spusťte vyhledávání trasy, nebo nastavte skóre manuálně níže.',
+    rationalePlaceholder: 'Odůvodnění tohoto skóre...',
+    managerOnlyScore: 'Skóre síly mohou upravovat pouze manažeři nákupu.',
+    saveScore: 'Uložit skóre',
+
+    possibleDuplicateOf: (n) => {
+      if (n === 1) return '⚠ Možná duplicita — nalezen 1 další podobný záznam';
+      if (n >= 2 && n <= 4) return `⚠ Možná duplicita — nalezeny ${n} další podobné záznamy`;
+      return `⚠ Možná duplicita — nalezeno ${n} dalších podobných záznamů`;
+    },
+    notADuplicate: 'Není duplikát',
+    duplicateFlagDismissed: 'Příznak duplicity byl pro tuto společnost zrušen.',
+    undo: 'Zpět',
+
+    details: 'Podrobnosti',
+    edit: 'Upravit',
+    region: 'Region',
+    coordinates: 'Souřadnice',
+    lastUpdated: 'Poslední aktualizace',
+    website: 'Web',
+    phone: 'Telefon',
+    email: 'E-mail',
+    notRecorded: 'Nezaznamenáno',
+    dash: '—',
+    pendingReview: 'Čeká na kontrolu',
+    sourcePrefix: 'Zdroj: ',
+    viewSource: 'zobrazit zdroj',
+    notApplicable: 'n/a',
+    name: 'Název',
+    type: 'Typ',
+    country: 'Země',
+    city: 'Město',
+    latitude: 'Zeměpisná šířka',
+    longitude: 'Zeměpisná délka',
+    description: 'Popis',
+    save: 'Uložit',
+    cancel: 'Zrušit',
+
+    trailerTypes: 'Typy návěsů',
+    noneOnFile: 'Žádné záznamy.',
+    addTrailerTypePlaceholder: 'Přidat typ návěsu...',
+    add: 'Přidat',
+
+    capabilityTags: 'Schopnosti',
+    addCapabilityPlaceholder: 'Přidat schopnost...',
+
+    activityLog: 'Historie aktivit',
+    logPlaceholder: 'Zaznamenat hovor, e-mail, schůzku nebo poznámku...',
+    addEntry: 'Přidat záznam',
+    loading: 'Načítání…',
+    dateAuthorSep: ' · ',
+    noActivityYet: 'Zatím žádná zaznamenaná aktivita.',
+
+    ratesReceived: 'Přijaté sazby',
+    originPlaceholder: 'Výchozí bod',
+    destinationPlaceholder: 'Cíl',
+    transportMode: 'Druh přepravy',
+    selectTransportMode: 'Vyberte druh přepravy...',
+    loadType: 'Typ nakládky',
+    selectLoadType: 'Vyberte typ nakládky...',
+    containerType: 'Typ kontejneru',
+    selectContainerType: 'Vyberte typ kontejneru...',
+    vehicleType: 'Typ vozidla / nástavby',
+    selectVehicleType: 'Vyberte typ vozidla...',
+    capacity: 'Kapacita',
+    selectCapacity: 'Vyberte kapacitu...',
+    cargoTypeHandling: 'Typ nákladu a manipulace',
+    selectCargoType: 'Vyberte typ nákladu...',
+    specialCargo: 'Speciální náklad',
+    generalCargo: 'Běžný náklad',
+    hazmatClass: 'Třída nebezpečnosti',
+    selectHazmatClass: 'Vyberte třídu nebezpečnosti...',
+    roadFleetType: 'Typ silniční flotily',
+    selectFleetType: 'Vyberte typ flotily...',
+    deliveryScope: 'Rozsah doručení',
+    selectDeliveryScope: 'Vyberte rozsah doručení...',
+    ratePlaceholder: 'Sazba (€)',
+    demFtPlaceholder: 'DEM / volný čas',
+    notesPlaceholder: 'Poznámky (stav poptávky, datum, odkaz...)',
+    addRate: 'Přidat sazbu',
+    demFtPrefix: 'DEM/F.T.: ',
+    noRatesYet: 'Zatím žádné sazby.',
+    deleteRate: 'Odstranit sazbu',
+    otherSpecify: 'Jiné (upřesnit)',
+    specifyPlaceholder: 'Upřesněte...',
+  },
+
+  mapView: {
+    apiKeyNeeded: 'Je vyžadován klíč Google Maps API',
+    apiKeyHint: 'Nastavte NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (s aktivovaným Maps JavaScript API) pro zobrazení dopravců na mapě.',
+    corridorOnly: 'Zobrazují se pouze společnosti v rámci vyhledaného koridoru, zbarvené podle relevance.',
+    runSearchHint: 'Spusťte vyhledávání trasy výše pro ohodnocení a zvýraznění relevantních společností.',
+    legendStrong: 'Silný (75+)',
+    legendMedium: 'Střední (50–74)',
+    legendWeak: 'Slabý (<50)',
+    legendUnscored: 'Nehodnoceno',
+    origin: 'Výchozí bod',
+    destination: 'Cíl',
+  },
+
+  importBtn: {
+    noDataRows: 'V tomto souboru nebyly nalezeny žádné datové řádky.',
+    couldNotRead: 'Soubor se nepodařilo přečíst — ujistěte se, že jde o .xlsx vytvořený ze šablony.',
+    importFailedRetry: 'Import se nezdařil — zkuste to znovu.',
+    template: '⬇ Šablona',
+    importAction: '⬆ Import',
+    previewHeading: 'Náhled importu',
+    rowsReadyToImport: (n) => {
+      if (n === 1) return '1 řádek připravený k importu.';
+      if (n >= 2 && n <= 4) return `${n} řádky připravené k importu.`;
+      return `${n} řádků připraveno k importu.`;
+    },
+    duplicatesExcluded: (n) => {
+      if (n === 1) return '1 pravděpodobný duplikát byl automaticky vyloučen:';
+      if (n >= 2 && n <= 4) return `${n} pravděpodobné duplikáty byly automaticky vyloučeny:`;
+      return `${n} pravděpodobných duplikátů bylo automaticky vyloučeno:`;
+    },
+    rowsWillBeSkipped: (n) => {
+      if (n === 1) return '1 řádek bude přeskočen:';
+      if (n >= 2 && n <= 4) return `${n} řádky budou přeskočeny:`;
+      return `${n} řádků bude přeskočeno:`;
+    },
+    rowPrefix: (row) => `Řádek ${row}: `,
+    importCount: (n) => {
+      if (n === 1) return 'Importovat 1 společnost';
+      if (n >= 2 && n <= 4) return `Importovat ${n} společnosti`;
+      return `Importovat ${n} společností`;
+    },
+    cancel: 'Zrušit',
+    importing: 'Import probíhá…',
+    completeHeading: 'Import dokončen',
+    importedCount: (n) => {
+      if (n === 1) return 'Importována 1 společnost.';
+      if (n >= 2 && n <= 4) return `Importovány ${n} společnosti.`;
+      return `Importováno ${n} společností.`;
+    },
+    rowsSkippedNote: (n) => {
+      if (n === 1) return '1 řádek byl přeskočen — důvody viz předchozí krok.';
+      if (n >= 2 && n <= 4) return `${n} řádky byly přeskočeny — důvody viz předchozí krok.`;
+      return `${n} řádků bylo přeskočeno — důvody viz předchozí krok.`;
+    },
+    done: 'Hotovo',
+    failedHeading: 'Import se nezdařil',
+    close: 'Zavřít',
+  },
+
+  tiers: {
+    unscored: 'Nehodnoceno',
+    strong: 'Silný',
+    medium: 'Střední',
+    weak: 'Slabý',
+  },
+
+  companyTypes: {
+    carrier: 'Dopravce',
+    manufacturer: 'Výrobce',
+    port: 'Přístav',
+    warehouse: 'Sklad',
+  },
+
+  activityTypes: {
+    Call: 'Hovor',
+    Email: 'E-mail',
+    Meeting: 'Schůzka',
+    Note: 'Poznámka',
+  },
+
+  errors: {
+    failedToLoad: 'Načtení se nezdařilo.',
+    somethingWentWrong: 'Něco se pokazilo.',
+    nameRequired: 'Název je povinný.',
+    latLngMustBeNumbers: 'Zeměpisná šířka a délka musí být čísla.',
+    couldNotSaveRetry: 'Uložení se nezdařilo — zkuste to znovu.',
+    confirmDeleteCompany: (name) => `Odstranit „${name}“? Tuto akci nelze vrátit zpět.`,
+  },
+
+  importValidation: {
+    nameRequired: 'Název je povinný.',
+    invalidType: (raw, validTypes) => `Neplatný typ "${raw}" — musí být jeden z: ${validTypes}.`,
+    latRequired: 'Zeměpisná šířka je povinná a musí být číslo mezi -90 a 90.',
+    lngRequired: 'Zeměpisná délka je povinná a musí být číslo mezi -180 a 180.',
+    duplicateSkip: (name, reason) => `"${name}" přeskočeno — ${reason}.`,
+    matchesExisting: 'odpovídá společnosti již existující v CRM',
+    duplicateInFile: 'duplikát jiného řádku v tomto souboru',
+  },
+};

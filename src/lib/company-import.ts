@@ -2,6 +2,11 @@
 // here is the contract for both — the downloaded template and the parser must agree on it.
 import type { CompanyType } from '@/types/company';
 import { normalizeCompanyName, normalizeDomain } from './duplicates';
+import { en } from './i18n/en';
+import { cs } from './i18n/cs';
+import type { Locale } from '@/lib/i18n/locale';
+
+const DICTS = { en, cs };
 
 export const IMPORT_HEADERS = [
   'name',
@@ -38,6 +43,34 @@ export const IMPORT_COLUMN_NOTES: Record<ImportHeader, string> = {
   trailer_types: 'Semicolon-separated, e.g. "Flatbed; Curtainside".',
   pending_review: 'true/false. Blank defaults to true.',
 };
+
+// Column keys (row 1 of the "Companies" sheet) stay in English regardless of locale — they're
+// a parsing contract with parseImportWorkbook, not display text. Only the "Read me" sheet's
+// notes and its own headers vary by locale.
+const IMPORT_COLUMN_NOTES_CS: Record<ImportHeader, string> = {
+  name: 'Povinné.',
+  type: 'carrier, manufacturer, port nebo warehouse. Prázdné výchozí na carrier.',
+  country: '',
+  region: '',
+  city: '',
+  lat: 'Povinné. Desetinné stupně, např. 48.137.',
+  lng: 'Povinné. Desetinné stupně, např. 11.575.',
+  website: '',
+  phone: '',
+  email: '',
+  description: '',
+  capability_tags: 'Oddělené středníkem, např. "Road Freight; Customs".',
+  trailer_types: 'Oddělené středníkem, např. "Flatbed; Curtainside".',
+  pending_review: 'true/false. Prázdné výchozí na true.',
+};
+
+export function getImportColumnNotes(locale: Locale): Record<ImportHeader, string> {
+  return locale === 'cs' ? IMPORT_COLUMN_NOTES_CS : IMPORT_COLUMN_NOTES;
+}
+
+export function getReadMeHeaders(locale: Locale): [string, string] {
+  return locale === 'cs' ? ['Sloupec', 'Poznámky'] : ['Column', 'Notes'];
+}
 
 const VALID_TYPES: CompanyType[] = ['carrier', 'manufacturer', 'port', 'warehouse'];
 
@@ -79,23 +112,24 @@ function parseBoolean(v: unknown, fallback: boolean): boolean {
 
 // `raw` is one row as a header-keyed object — whatever the parser (ExcelJS or CSV) produced.
 // Every cell arrives as `unknown` since spreadsheet cells can be numbers, strings, or null.
-export function validateImportRow(raw: Record<string, unknown>, rowNumber: number): ImportedCompanyRow | ImportRowError {
+export function validateImportRow(raw: Record<string, unknown>, rowNumber: number, locale: Locale = 'en'): ImportedCompanyRow | ImportRowError {
+  const v = DICTS[locale].importValidation;
   const name = String(raw.name ?? '').trim();
-  if (!name) return { row: rowNumber, reason: 'Name is required.' };
+  if (!name) return { row: rowNumber, reason: v.nameRequired };
 
   const rawType = String(raw.type ?? '').trim().toLowerCase();
   const type = (rawType || 'carrier') as CompanyType;
   if (rawType && !VALID_TYPES.includes(type)) {
-    return { row: rowNumber, reason: `Invalid type "${raw.type}" — must be one of ${VALID_TYPES.join(', ')}.` };
+    return { row: rowNumber, reason: v.invalidType(String(raw.type), VALID_TYPES.join(', ')) };
   }
 
   const lat = Number(raw.lat);
   const lng = Number(raw.lng);
   if (raw.lat == null || raw.lat === '' || Number.isNaN(lat) || lat < -90 || lat > 90) {
-    return { row: rowNumber, reason: 'Latitude is required and must be a number between -90 and 90.' };
+    return { row: rowNumber, reason: v.latRequired };
   }
   if (raw.lng == null || raw.lng === '' || Number.isNaN(lng) || lng < -180 || lng > 180) {
-    return { row: rowNumber, reason: 'Longitude is required and must be a number between -180 and 180.' };
+    return { row: rowNumber, reason: v.lngRequired };
   }
 
   return {
@@ -116,11 +150,11 @@ export function validateImportRow(raw: Record<string, unknown>, rowNumber: numbe
   };
 }
 
-export function validateImportRows(rows: Record<string, unknown>[]): ImportValidationResult {
+export function validateImportRows(rows: Record<string, unknown>[], locale: Locale = 'en'): ImportValidationResult {
   const valid: ImportedCompanyRow[] = [];
   const errors: ImportRowError[] = [];
   rows.forEach((raw, i) => {
-    const result = validateImportRow(raw, i + 2); // +2: header row is 1, data starts at 2
+    const result = validateImportRow(raw, i + 2, locale); // +2: header row is 1, data starts at 2
     if ('reason' in result) errors.push(result);
     else valid.push(result);
   });
@@ -136,7 +170,9 @@ export type ImportDuplicatePartition = { unique: ImportedCompanyRow[]; duplicate
 export function partitionDuplicateRows(
   rows: ImportedCompanyRow[],
   existing: { name: string; website: string }[],
+  locale: Locale = 'en',
 ): ImportDuplicatePartition {
+  const v = DICTS[locale].importValidation;
   const existingNames = new Set(existing.map((c) => normalizeCompanyName(c.name)).filter(Boolean));
   const existingDomains = new Set(existing.map((c) => normalizeDomain(c.website)).filter(Boolean));
   const seenNames = new Set<string>();
@@ -154,7 +190,7 @@ export function partitionDuplicateRows(
     if (matchesExisting || matchesEarlierRow) {
       duplicates.push({
         row: null,
-        reason: `"${row.name}" skipped — ${matchesExisting ? 'matches a company already in the CRM' : 'duplicate of another row in this file'}.`,
+        reason: v.duplicateSkip(row.name, matchesExisting ? v.matchesExisting : v.duplicateInFile),
       });
       return;
     }
