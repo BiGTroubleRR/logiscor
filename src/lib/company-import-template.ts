@@ -25,7 +25,7 @@ export async function downloadImportTemplate(locale: Locale = 'en'): Promise<voi
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'carrier-crm-import-template.xlsx';
+  a.download = 'logiscor-import-template.xlsx';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

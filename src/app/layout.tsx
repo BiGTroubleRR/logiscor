@@ -16,7 +16,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Carrier CRM · Freight Procurement',
+  title: 'Logiscor · Freight Procurement',
   description: 'Browse, filter, and vet trucking carrier companies for freight procurement.',
 };
 

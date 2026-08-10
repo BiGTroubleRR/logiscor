@@ -2,7 +2,7 @@
 // Functions are used wherever a string needs interpolation or pluralization.
 export const en = {
   header: {
-    appName: 'Carrier CRM',
+    appName: 'Logiscor',
     tagline: 'Freight Procurement',
     companyList: 'Company List',
     mapView: 'Map View',
@@ -20,7 +20,7 @@ export const en = {
   },
 
   auth: {
-    appName: 'Carrier CRM',
+    appName: 'Logiscor',
     email: 'Email',
     password: 'Password',
     signIn: 'Sign in',

@@ -10,7 +10,7 @@ export function loadGoogleMaps(apiKey: string): Promise<void> {
   if (loadingPromise) return loadingPromise;
 
   loadingPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-carrier-crm-gmaps]');
+    const existing = document.querySelector('script[data-logiscor-gmaps]');
     if (existing) {
       const check = setInterval(() => {
         if (window.google?.maps) {
@@ -23,7 +23,7 @@ export function loadGoogleMaps(apiKey: string): Promise<void> {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=visualization`;
     script.async = true;
-    script.dataset.carrierCrmGmaps = 'true';
+    script.dataset.logiscorGmaps = 'true';
     script.onload = () => {
       const check = setInterval(() => {
         if (window.google?.maps) {

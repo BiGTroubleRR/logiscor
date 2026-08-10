@@ -9,7 +9,7 @@ import type { Dict } from './en';
 // generic i18n plural library would be more machinery than the problem needs.
 export const cs: Dict = {
   header: {
-    appName: 'Carrier CRM',
+    appName: 'Logiscor',
     tagline: 'Nákup přepravy',
     companyList: 'Seznam společností',
     mapView: 'Zobrazení mapy',
@@ -27,7 +27,7 @@ export const cs: Dict = {
   },
 
   auth: {
-    appName: 'Carrier CRM',
+    appName: 'Logiscor',
     email: 'E-mail',
     password: 'Heslo',
     signIn: 'Přihlásit se',

@@ -1,4 +1,4 @@
--- Carrier CRM — Supabase schema
+-- Logiscor — Supabase schema
 -- Run this once in the Supabase dashboard's SQL Editor (Project → SQL Editor → New query).
 --
 -- Auth model: this is an internal tool, not a public site. Every user signs in with
