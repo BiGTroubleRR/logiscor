@@ -22,6 +22,23 @@ function debounce<T extends (...args: never[]) => void>(fn: T, wait: number): T 
   }) as T;
 }
 
+// Bounds for the initial view, trimming the outer 10% of the lat/lng spread on each side first —
+// otherwise a handful of far-flung entries (a lone company in Japan, say, among hundreds
+// clustered in Europe) would drag the default view out to a near-world zoom just to include
+// them. Skipped below ~20 companies, where "outlier" and "real data" aren't reliably distinguishable.
+function initialFitBounds(companies: { lat: number; lng: number }[]): [[number, number], [number, number]] {
+  const lats = companies.map((c) => c.lat).sort((a, b) => a - b);
+  const lngs = companies.map((c) => c.lng).sort((a, b) => a - b);
+  const n = lats.length;
+  const trim = n > 20 ? Math.floor(n * 0.1) : 0;
+  const lo = trim;
+  const hi = n - 1 - trim;
+  return [
+    [lats[lo], lngs[lo]],
+    [lats[hi], lngs[hi]],
+  ];
+}
+
 // Leaflet touches `document`/`navigator` at module-evaluation time for feature detection, which
 // crashes during SSR — so the library itself is dynamic-imported inside an effect (client-only),
 // never as a static top-level import. Only the CSS above and this type-only import are static.
@@ -167,9 +184,7 @@ export default function MapView() {
     syncRouteOverlay();
 
     if (!route.active && !boundsFitRef.current && filtered.length) {
-      const L = leafletRef.current!;
-      const bounds2 = L.latLngBounds(filtered.map((c) => [c.lat, c.lng] as [number, number]));
-      map.fitBounds(bounds2);
+      map.fitBounds(initialFitBounds(filtered));
       boundsFitRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
