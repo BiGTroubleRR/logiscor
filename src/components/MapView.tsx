@@ -55,11 +55,7 @@ function markerIcon(L: typeof LeafletNS, c: CompanyView): LeafletNS.DivIcon {
   const tier = tierColor(score);
   const size = score == null ? 16 : 18 + Math.round((score / 100) * 16);
   const fontSize = size <= 20 ? 9 : 10;
-  const html = `
-    <div style="position:relative;width:${size}px;height:${size}px;">
-      <div style="width:${size}px;height:${size}px;border-radius:50%;background:${tier.bar};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-weight:700;">${score ?? ''}</div>
-      <div class="lgs-marker-label" style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(255,255,255,0.92);color:#0f172a;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.25);">${escapeHtml(c.name)}</div>
-    </div>`;
+  const html = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${tier.bar};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-weight:700;">${score ?? ''}</div>`;
   return L.divIcon({ html, className: 'lgs-marker-icon', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
@@ -101,17 +97,25 @@ export default function MapView() {
   function getOrCreateMarker(c: CompanyView): LeafletNS.Marker {
     const L = leafletRef.current!;
     const score = c.strength_score;
-    const iconKey = tierColor(score).bar + ':' + score + ':' + c.name;
+    const iconKey = tierColor(score).bar + ':' + score;
 
     let m = markerMapRef.current.get(c.id);
     if (!m) {
       m = L.marker([c.displayLat, c.displayLng], { icon: markerIcon(L, c), title: c.name });
       m.on('click', () => openDrawer(c.id));
+      // A permanent tooltip rather than baking the name into the icon's own HTML — tooltips
+      // render in Leaflet's tooltipPane, above every marker's pane, so a neighboring marker's
+      // circle (created later, later in the DOM) can never paint over this label. Icon-embedded
+      // labels shared the markerPane with every circle and lost that fight in dense clusters.
+      m.bindTooltip(escapeHtml(c.name), { permanent: true, direction: 'bottom', className: 'lgs-marker-label', offset: [0, 2] });
       (m as unknown as { _iconKey?: string })._iconKey = iconKey;
       markerMapRef.current.set(c.id, m);
     } else if ((m as unknown as { _iconKey?: string })._iconKey !== iconKey) {
       m.setIcon(markerIcon(L, c));
       (m as unknown as { _iconKey?: string })._iconKey = iconKey;
+    }
+    if (m.getTooltip()?.getContent() !== escapeHtml(c.name)) {
+      m.setTooltipContent(escapeHtml(c.name));
     }
     return m;
   }
