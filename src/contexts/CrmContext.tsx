@@ -51,7 +51,9 @@ export type RouteState = {
   active: boolean;
   loading: boolean;
   error: string;
-  directionsResult: google.maps.DirectionsResult | null;
+  // Real driving distance/time from OSRM, alongside the route (used for display only — the
+  // corridor search itself scores against `path`, not this).
+  routeInfo: { distanceKm: number; durationMin: number } | null;
 };
 
 const DEFAULT_ROUTE: RouteState = {
@@ -66,7 +68,7 @@ const DEFAULT_ROUTE: RouteState = {
   active: false,
   loading: false,
   error: '',
-  directionsResult: null,
+  routeInfo: null,
 };
 
 export type EditDraft = {
@@ -390,23 +392,21 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     return { lat, lng };
   }, []);
 
-  const fetchDirections = useCallback((origin: LatLng, dest: LatLng): Promise<{ path: LatLng[]; result: google.maps.DirectionsResult } | null> => {
-    return new Promise((resolve) => {
-      if (typeof window === 'undefined' || !window.google?.maps?.DirectionsService) {
-        resolve(null);
-        return;
-      }
-      new window.google.maps.DirectionsService().route(
-        { origin, destination: dest, travelMode: window.google.maps.TravelMode.DRIVING },
-        (result, status) => {
-          if (status === 'OK' && result) {
-            resolve({ path: result.routes[0].overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() })), result });
-          } else {
-            resolve(null);
-          }
-        },
-      );
-    });
+  // OSRM's public demo server — free, keyless driving directions. Best-effort: on any failure
+  // (network, rate limit, no route found) runRouteSearch falls back to a straight-line corridor.
+  const fetchDirections = useCallback(async (origin: LatLng, dest: LatLng): Promise<{ path: LatLng[]; distanceKm: number; durationMin: number } | null> => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const body = await res.json();
+      const leg = body.routes?.[0];
+      if (!leg) return null;
+      const path: LatLng[] = leg.geometry.coordinates.map(([lng, lat]: [number, number]) => ({ lat, lng }));
+      return { path, distanceKm: leg.distance / 1000, durationMin: leg.duration / 60 };
+    } catch {
+      return null;
+    }
   }, []);
 
   const runRouteSearch = useCallback(async () => {
@@ -426,7 +426,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       destCoord: dest,
       path,
       hasDirections: !!directions,
-      directionsResult: directions?.result ?? null,
+      routeInfo: directions ? { distanceKm: directions.distanceKm, durationMin: directions.durationMin } : null,
       active: true,
       loading: false,
       error: directions ? '' : t.routeSearch.errorNoDirections,
@@ -442,7 +442,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       destCoord: null,
       path: null,
       hasDirections: false,
-      directionsResult: null,
+      routeInfo: null,
       cargoType: '',
       error: '',
     }));

@@ -59,7 +59,13 @@ export const en = {
     clearRoute: 'Clear route',
     corridorHint: 'Broaden the corridor slider to widen the search without re-typing places.',
     errorNoPlace: 'Could not find one of those places. Try a more specific city name.',
-    errorNoDirections: 'Exact driving route unavailable (Directions API) — showing a straight-line corridor instead.',
+    errorNoDirections: 'Exact driving route unavailable — showing a straight-line corridor instead.',
+    routeSummary: (distanceKm: number, durationMin: number) => {
+      const h = Math.floor(durationMin / 60);
+      const m = Math.round(durationMin % 60);
+      const duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      return `${Math.round(distanceKm)} km · ${duration}`;
+    },
   },
 
   table: {
@@ -187,8 +193,6 @@ export const en = {
   },
 
   mapView: {
-    apiKeyNeeded: 'Google Maps API key needed',
-    apiKeyHint: 'Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (with the Maps JavaScript API enabled) to plot carriers on the live map.',
     corridorOnly: 'Showing only companies within the searched corridor, colored by relevance.',
     runSearchHint: 'Run a route search above to score and highlight relevant companies.',
     legendStrong: 'Strong (75+)',

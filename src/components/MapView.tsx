@@ -1,185 +1,179 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer';
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { loadGoogleMaps } from '@/lib/google-maps-loader';
 import { getDisplayScore, tierColor } from '@/lib/format';
 import type { CompanyView } from '@/types/company';
+import type * as LeafletNS from 'leaflet';
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+// External stylesheets — safe to import directly in a client component under the App Router
+// (see next.config.ts's neighbor note on Leaflet needing no API key/script tag, unlike the
+// Google Maps loader this replaced).
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 function debounce<T extends (...args: never[]) => void>(fn: T, wait: number): T {
-  let t: ReturnType<typeof setTimeout>;
+  let timer: ReturnType<typeof setTimeout>;
   return ((...args: never[]) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), wait);
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
   }) as T;
+}
+
+// Leaflet touches `document`/`navigator` at module-evaluation time for feature detection, which
+// crashes during SSR — so the library itself is dynamic-imported inside an effect (client-only),
+// never as a static top-level import. Only the CSS above and this type-only import are static.
+function markerIcon(L: typeof LeafletNS, c: CompanyView): LeafletNS.DivIcon {
+  const score = getDisplayScore(c);
+  const tier = tierColor(score);
+  const size = score == null ? 16 : 18 + Math.round((score / 100) * 16);
+  const fontSize = size <= 20 ? 9 : 10;
+  const html = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${tier.bar};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:${fontSize}px;font-weight:700;">${score ?? ''}</div>`;
+  return L.divIcon({ html, className: 'lgs-marker-icon', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
 export default function MapView() {
   const { filtered, route, openDrawer } = useCrm();
   const { t } = useLocale();
   const mapDivRef = useRef<HTMLDivElement | null>(null);
-  const [mapsReady, setMapsReady] = useState(false);
+  const [leafletReady, setLeafletReady] = useState(false);
 
-  const gmapRef = useRef<google.maps.Map | null>(null);
-  const markerMapRef = useRef<Map<string, google.maps.Marker>>(new Map());
-  const clustererRef = useRef<MarkerClusterer | null>(null);
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-  const routeLineRef = useRef<google.maps.Polyline | null>(null);
-  const routeMarkersRef = useRef<google.maps.Marker[]>([]);
+  const leafletRef = useRef<typeof LeafletNS | null>(null);
+  const mapRef = useRef<LeafletNS.Map | null>(null);
+  const markerMapRef = useRef<Map<string, LeafletNS.Marker>>(new Map());
+  const clusterGroupRef = useRef<LeafletNS.MarkerClusterGroup | null>(null);
+  const routeLineRef = useRef<LeafletNS.Polyline | null>(null);
+  const routeMarkersRef = useRef<LeafletNS.Marker[]>([]);
   const boundsFitRef = useRef(false);
   const routeBoundsFitRef = useRef(false);
   const lastFilteredRef = useRef<CompanyView[]>([]);
 
   useEffect(() => {
-    if (!GOOGLE_MAPS_API_KEY) return;
-    loadGoogleMaps(GOOGLE_MAPS_API_KEY)
-      .then(() => setMapsReady(true))
-      .catch(() => setMapsReady(false));
+    let cancelled = false;
+    (async () => {
+      const leafletModule = await import('leaflet');
+      // leaflet.markercluster mutates the plain CJS `leaflet` module object (adding
+      // L.markerClusterGroup) rather than exporting anything itself — bundlers only surface that
+      // mutation through the module's `.default`, not through the synthesized ESM namespace
+      // object, so unwrap to `.default` before the plugin import runs.
+      const L = (leafletModule as unknown as { default?: typeof LeafletNS }).default ?? leafletModule;
+      await import('leaflet.markercluster');
+      if (cancelled) return;
+      leafletRef.current = L;
+      setLeafletReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Init map once.
-  useEffect(() => {
-    if (!mapsReady || !mapDivRef.current || gmapRef.current) return;
-    const g = window.google.maps;
-    const gmap = new g.Map(mapDivRef.current, {
-      center: { lat: 49.8, lng: 16.5 },
-      zoom: 5,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-    gmapRef.current = gmap;
-
-    const updateVisibleMarkers = debounce(() => {
-      if (!clustererRef.current) return;
-      const bounds = gmap.getBounds();
-      if (!bounds) return;
-      const sw = bounds.getSouthWest();
-      const ne = bounds.getNorthEast();
-      const padded = new g.LatLngBounds({ lat: sw.lat() - 1, lng: sw.lng() - 1 }, { lat: ne.lat() + 1, lng: ne.lng() + 1 });
-      const visible = lastFilteredRef.current.filter((c) => padded.contains({ lat: c.lat, lng: c.lng }));
-      const markers = visible.map((c) => getOrCreateMarker(c));
-      clustererRef.current.clearMarkers();
-      clustererRef.current.addMarkers(markers);
-    }, 150);
-
-    gmap.addListener('bounds_changed', updateVisibleMarkers);
-    gmap.addListener('zoom_changed', updateVisibleMarkers);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapsReady]);
-
-  function getOrCreateMarker(c: CompanyView): google.maps.Marker {
-    const g = window.google.maps;
+  function getOrCreateMarker(c: CompanyView): LeafletNS.Marker {
+    const L = leafletRef.current!;
     const score = getDisplayScore(c);
-    const tier = tierColor(score);
-    const iconKey = tier.bar + ':' + score;
-    const scale = score == null ? 5 : 6 + (score / 100) * 9;
-    const icon: google.maps.Symbol = { path: g.SymbolPath.CIRCLE, scale, fillColor: tier.bar, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 };
-    const label: google.maps.MarkerLabel | undefined =
-      score == null ? undefined : { text: String(score), color: '#fff', fontSize: '10px', fontWeight: '700' };
+    const iconKey = tierColor(score).bar + ':' + score;
 
     let m = markerMapRef.current.get(c.id);
     if (!m) {
-      m = new g.Marker({ position: { lat: c.displayLat, lng: c.displayLng }, icon, label, title: c.name });
-      m.addListener('click', () => openDrawer(c.id));
+      m = L.marker([c.displayLat, c.displayLng], { icon: markerIcon(L, c), title: c.name });
+      m.on('click', () => openDrawer(c.id));
       (m as unknown as { _iconKey?: string })._iconKey = iconKey;
       markerMapRef.current.set(c.id, m);
     } else if ((m as unknown as { _iconKey?: string })._iconKey !== iconKey) {
-      m.setIcon(icon);
-      m.setLabel(label ?? null);
+      m.setIcon(markerIcon(L, c));
       (m as unknown as { _iconKey?: string })._iconKey = iconKey;
     }
     return m;
   }
 
   function syncRouteOverlay() {
-    const g = window.google.maps;
-    const gmap = gmapRef.current!;
-    const { active, originCoord, destCoord, hasDirections, directionsResult } = route;
+    const L = leafletRef.current!;
+    const map = mapRef.current!;
+    const { active, originCoord, destCoord, path } = route;
 
-    if (directionsRendererRef.current) directionsRendererRef.current.setMap(null);
     if (routeLineRef.current) {
-      routeLineRef.current.setMap(null);
+      map.removeLayer(routeLineRef.current);
       routeLineRef.current = null;
     }
-    routeMarkersRef.current.forEach((m) => m.setMap(null));
+    routeMarkersRef.current.forEach((m) => map.removeLayer(m));
     routeMarkersRef.current = [];
 
     if (!active || !originCoord || !destCoord) return;
 
-    if (hasDirections && directionsResult) {
-      if (!directionsRendererRef.current) {
-        directionsRendererRef.current = new g.DirectionsRenderer({
-          suppressMarkers: false,
-          polylineOptions: { strokeColor: '#0f172a', strokeOpacity: 0.75, strokeWeight: 4 },
-        });
-      }
-      directionsRendererRef.current.setMap(gmap);
-      directionsRendererRef.current.setDirections(directionsResult);
-    } else {
-      routeLineRef.current = new g.Polyline({
-        path: [originCoord, destCoord],
-        map: gmap,
-        strokeColor: '#0f172a',
-        strokeOpacity: 0.6,
-        strokeWeight: 3,
-        icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 }, offset: '0', repeat: '14px' }],
+    const linePath: [number, number][] = (path && path.length >= 2 ? path : [originCoord, destCoord]).map((p) => [p.lat, p.lng]);
+    routeLineRef.current = L.polyline(linePath, { color: '#0f172a', weight: 4, opacity: 0.75 }).addTo(map);
+
+    const endpointIcon = (color: string) =>
+      L.divIcon({
+        html: `<div style="width:16px;height:16px;border-radius:50% 50% 50% 0;background:${color};border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);transform:rotate(-45deg);"></div>`,
+        className: 'lgs-marker-icon',
+        iconSize: [16, 16],
+        iconAnchor: [8, 16],
       });
-      routeMarkersRef.current = [originCoord, destCoord].map(
-        (pt, i) =>
-          new g.Marker({
-            position: pt,
-            map: gmap,
-            title: i === 0 ? t.mapView.origin : t.mapView.destination,
-            icon: { path: g.SymbolPath.BACKWARD_CLOSED_ARROW, rotation: 0, scale: 6, fillColor: i === 0 ? '#2563eb' : '#dc2626', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
-          }),
-      );
-    }
+    routeMarkersRef.current = [
+      L.marker([originCoord.lat, originCoord.lng], { icon: endpointIcon('#2563eb'), title: t.mapView.origin }).addTo(map),
+      L.marker([destCoord.lat, destCoord.lng], { icon: endpointIcon('#dc2626'), title: t.mapView.destination }).addTo(map),
+    ];
 
     if (!routeBoundsFitRef.current) {
-      const bounds = new g.LatLngBounds();
-      bounds.extend(originCoord);
-      bounds.extend(destCoord);
-      gmap.fitBounds(bounds, 60);
+      map.fitBounds(L.latLngBounds([originCoord.lat, originCoord.lng], [destCoord.lat, destCoord.lng]), { padding: [60, 60] });
       routeBoundsFitRef.current = true;
     }
   }
 
+  // Init map once.
+  useEffect(() => {
+    if (!leafletReady || !mapDivRef.current || mapRef.current) return;
+    const L = leafletRef.current!;
+    const map = L.map(mapDivRef.current, { center: [49.8, 16.5], zoom: 5 });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
+    mapRef.current = map;
+
+    const clusterGroup = L.markerClusterGroup({ maxClusterRadius: 60, disableClusteringAtZoom: 15 });
+    clusterGroup.addTo(map);
+    clusterGroupRef.current = clusterGroup;
+
+    const updateVisibleMarkers = debounce(() => {
+      if (!clusterGroupRef.current) return;
+      const bounds = map.getBounds().pad(1);
+      const visible = lastFilteredRef.current.filter((c) => bounds.contains([c.lat, c.lng]));
+      const markers = visible.map((c) => getOrCreateMarker(c));
+      clusterGroupRef.current.clearLayers();
+      clusterGroupRef.current.addLayers(markers);
+    }, 150);
+
+    map.on('moveend', updateVisibleMarkers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leafletReady]);
+
   // Sync markers/route whenever the filtered set or route changes.
   useEffect(() => {
-    if (!mapsReady || !gmapRef.current) return;
-    const g = window.google.maps;
-    const gmap = gmapRef.current;
+    if (!leafletReady || !mapRef.current) return;
+    const map = mapRef.current;
     lastFilteredRef.current = filtered;
 
-    if (!clustererRef.current) {
-      clustererRef.current = new MarkerClusterer({ map: gmap, markers: [], algorithm: new SuperClusterAlgorithm({ maxZoom: 15, radius: 60 }) });
-    }
-    const bounds = gmap.getBounds();
-    if (bounds) {
-      const sw = bounds.getSouthWest();
-      const ne = bounds.getNorthEast();
-      const padded = new g.LatLngBounds({ lat: sw.lat() - 1, lng: sw.lng() - 1 }, { lat: ne.lat() + 1, lng: ne.lng() + 1 });
-      const visible = filtered.filter((c) => padded.contains({ lat: c.lat, lng: c.lng }));
+    if (clusterGroupRef.current) {
+      const bounds = map.getBounds().pad(1);
+      const visible = filtered.filter((c) => bounds.contains([c.lat, c.lng]));
       const markers = visible.map((c) => getOrCreateMarker(c));
-      clustererRef.current.clearMarkers();
-      clustererRef.current.addMarkers(markers);
+      clusterGroupRef.current.clearLayers();
+      clusterGroupRef.current.addLayers(markers);
     }
 
     syncRouteOverlay();
 
     if (!route.active && !boundsFitRef.current && filtered.length) {
-      const bounds2 = new g.LatLngBounds();
-      filtered.forEach((c) => bounds2.extend({ lat: c.lat, lng: c.lng }));
-      gmap.fitBounds(bounds2);
+      const L = leafletRef.current!;
+      const bounds2 = L.latLngBounds(filtered.map((c) => [c.lat, c.lng] as [number, number]));
+      map.fitBounds(bounds2);
       boundsFitRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapsReady, filtered, route.active, route.originCoord, route.destCoord, route.hasDirections, route.directionsResult]);
+  }, [leafletReady, filtered, route.active, route.originCoord, route.destCoord, route.path]);
 
   useEffect(() => {
     if (!route.active) routeBoundsFitRef.current = false;
@@ -189,16 +183,7 @@ export default function MapView() {
     <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#e2e8f0' }}>
       <div ref={mapDivRef} style={{ position: 'absolute', inset: 0 }} />
 
-      {!GOOGLE_MAPS_API_KEY && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e2e8f0' }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: '24px 28px', maxWidth: 340, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.12)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 6 }}>{t.mapView.apiKeyNeeded}</div>
-            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{t.mapView.apiKeyHint}</div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ position: 'absolute', top: 16, left: 16, background: '#fff', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,0,0,0.15)', padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 200 }}>
+      <div style={{ position: 'absolute', top: 16, left: 16, background: '#fff', borderRadius: 10, boxShadow: '0 2px 12px rgba(0,0,0,0.15)', padding: 12, display: 'flex', flexDirection: 'column', gap: 10, width: 200, zIndex: 1000 }}>
         <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>
           {route.active ? t.mapView.corridorOnly : t.mapView.runSearchHint}
         </div>

@@ -66,7 +66,13 @@ export const cs: Dict = {
     clearRoute: 'Vymazat trasu',
     corridorHint: 'Rozšiřte posuvník koridoru pro širší vyhledávání bez nutnosti znovu zadávat místa.',
     errorNoPlace: 'Nepodařilo se najít jedno z těchto míst. Zkuste zadat konkrétnější název města.',
-    errorNoDirections: 'Přesná trasa jízdy není k dispozici (Directions API) — zobrazuje se přímý koridor.',
+    errorNoDirections: 'Přesná trasa jízdy není k dispozici — zobrazuje se přímý koridor.',
+    routeSummary: (distanceKm, durationMin) => {
+      const h = Math.floor(durationMin / 60);
+      const m = Math.round(durationMin % 60);
+      const duration = h > 0 ? `${h} h ${m} min` : `${m} min`;
+      return `${Math.round(distanceKm)} km · ${duration}`;
+    },
   },
 
   table: {
@@ -198,8 +204,6 @@ export const cs: Dict = {
   },
 
   mapView: {
-    apiKeyNeeded: 'Je vyžadován klíč Google Maps API',
-    apiKeyHint: 'Nastavte NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (s aktivovaným Maps JavaScript API) pro zobrazení dopravců na mapě.',
     corridorOnly: 'Zobrazují se pouze společnosti v rámci vyhledaného koridoru, zbarvené podle relevance.',
     runSearchHint: 'Spusťte vyhledávání trasy výše pro ohodnocení a zvýraznění relevantních společností.',
     legendStrong: 'Silný (75+)',

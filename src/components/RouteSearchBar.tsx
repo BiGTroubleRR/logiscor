@@ -70,6 +70,11 @@ export default function RouteSearchBar() {
         </button>
       )}
       {route.error && <span style={{ fontSize: 12, color: '#fca5a5' }}>{route.error}</span>}
+      {route.active && route.routeInfo && (
+        <span style={{ fontSize: 12, color: '#5eead4', fontWeight: 600 }}>
+          {t.routeSearch.routeSummary(route.routeInfo.distanceKm, route.routeInfo.durationMin)}
+        </span>
+      )}
       {route.active && !route.error && (
         <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.routeSearch.corridorHint}</span>
       )}

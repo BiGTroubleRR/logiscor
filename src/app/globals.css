@@ -36,3 +36,10 @@ button {
 ::placeholder {
   color: #94a3b8;
 }
+
+/* MapView.tsx's carrier markers are Leaflet divIcons — override the plugin's default white
+   box/border so only our own circle (drawn via inline style in the icon's HTML) shows. */
+.leaflet-div-icon.lgs-marker-icon {
+  background: transparent;
+  border: none;
+}
