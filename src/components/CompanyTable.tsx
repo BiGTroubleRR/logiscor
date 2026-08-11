@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
+import { findSnippet, formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
@@ -46,7 +46,7 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
 }
 
 function Row({ c }: { c: CompanyView }) {
-  const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route } = useCrm();
+  const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route, filters } = useCrm();
   const { locale, t } = useLocale();
   const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
   const score = c.strength_score;
@@ -56,6 +56,7 @@ function Row({ c }: { c: CompanyView }) {
   const visibleTrailerTypes = c.trailer_types.slice(0, 2);
   const extraTrailerTypeCount = c.trailer_types.length - 2;
   const emailFlag = emailBadge(c, t);
+  const noteMatch = findSnippet(c.description, filters.search);
 
   const rowStyle: CSSProperties = c.isDuplicate
     ? { background: '#fef2f2', boxShadow: 'inset 3px 0 0 #dc2626', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }
@@ -97,6 +98,13 @@ function Row({ c }: { c: CompanyView }) {
             </span>
           )}
         </div>
+        {noteMatch && (
+          <div style={{ fontSize: 11, color: '#0d9488', marginTop: 3 }} title={c.description}>
+            📝 {t.table.foundInNotes}: &ldquo;{noteMatch.before}
+            <strong>{noteMatch.match}</strong>
+            {noteMatch.after}&rdquo;
+          </div>
+        )}
       </td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

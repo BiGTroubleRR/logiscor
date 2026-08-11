@@ -3,7 +3,7 @@
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
-import { activityTypeColor, formatDate, formatDateTime, formatTag, tierColor } from '@/lib/format';
+import { activityTypeColor, formatDate, formatDateTime, formatTag, normalizeUrl, tierColor } from '@/lib/format';
 import { translateOption } from '@/lib/i18n/option-labels';
 import type { ActivityType, CompanyType } from '@/types/company';
 import {
@@ -273,7 +273,11 @@ export default function CompanyDrawer() {
                   <Field label={t.drawer.region} value={selected.region || t.drawer.notRecorded} />
                   <Field label={t.drawer.coordinates} value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
                   <Field label={t.drawer.lastUpdated} value={formatDateTime(selected.updated_at, dateLocale)} />
-                  <Field label={t.drawer.website} value={selected.website || t.drawer.dash} />
+                  <Field
+                    label={t.drawer.website}
+                    value={selected.website || t.drawer.dash}
+                    href={selected.website ? normalizeUrl(selected.website) : undefined}
+                  />
                   <Field label={t.drawer.phone} value={selected.phone || t.drawer.dash} />
                   <Field label={t.drawer.email} value={selected.email || t.drawer.dash} span2 />
                 </div>
@@ -731,11 +735,19 @@ export default function CompanyDrawer() {
   );
 }
 
-function Field({ label, value, span2 }: { label: string; value: string; span2?: boolean }) {
+function Field({ label, value, href, span2 }: { label: string; value: string; href?: string; span2?: boolean }) {
   return (
     <div style={span2 ? { gridColumn: 'span 2' } : undefined}>
       <div style={{ color: '#94a3b8', fontSize: 11 }}>{label}</div>
-      <div style={{ color: '#0f172a' }}>{value}</div>
+      <div style={{ color: '#0f172a' }}>
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: '#2563eb', wordBreak: 'break-all' }}>
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </div>
     </div>
   );
 }

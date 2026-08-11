@@ -39,7 +39,7 @@ export const cs: Dict = {
   },
 
   filterBar: {
-    searchPlaceholder: 'Hledat název nebo město...',
+    searchPlaceholder: 'Hledat název, město nebo poznámky...',
     allTypes: 'Všechny typy',
     allCountries: 'Všechny země',
     allRegions: 'Všechny regiony',
@@ -76,6 +76,7 @@ export const cs: Dict = {
   table: {
     dup: 'DUP?',
     possiblySameAs: (names) => `Možná stejné jako: ${names}`,
+    foundInNotes: 'Nalezeno v poznámkách',
     dismiss: 'zrušit',
     notDuplicateDismiss: 'Není duplikát — zrušit',
     none: 'Žádná',

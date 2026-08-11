@@ -318,7 +318,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (!route.active || c.routeMatch) &&
-        (search === '' || c.name.toLowerCase().includes(search) || c.city.toLowerCase().includes(search)),
+        (search === '' ||
+          c.name.toLowerCase().includes(search) ||
+          c.city.toLowerCase().includes(search) ||
+          c.description.toLowerCase().includes(search)),
     );
   }, [companies, filters, route.active]);
 

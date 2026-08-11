@@ -52,3 +52,29 @@ const ACTIVITY_TYPE_COLORS: Record<ActivityType, string> = {
 export function activityTypeColor(type: ActivityType): string {
   return ACTIVITY_TYPE_COLORS[type] ?? '#64748b';
 }
+
+// Stored websites are often bare domains ("www.example.com") with no scheme — an <a href> with
+// no scheme resolves relative to the current page instead of opening the site, so prepend one.
+export function normalizeUrl(website: string): string {
+  const trimmed = website.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+export type TextSnippet = { before: string; match: string; after: string };
+
+// Finds the first case-insensitive occurrence of `term` in `text` and returns it as three parts
+// (context before, the matched substring in its original casing, context after) so callers can
+// bold just the match — used to show *why* a free-text field (e.g. notes) matched a search.
+export function findSnippet(text: string, term: string, radius = 30): TextSnippet | null {
+  const t = term.trim();
+  if (!t || !text) return null;
+  const idx = text.toLowerCase().indexOf(t.toLowerCase());
+  if (idx === -1) return null;
+  const start = Math.max(0, idx - radius);
+  const end = Math.min(text.length, idx + t.length + radius);
+  return {
+    before: (start > 0 ? '…' : '') + text.slice(start, idx),
+    match: text.slice(idx, idx + t.length),
+    after: text.slice(idx + t.length, end) + (end < text.length ? '…' : ''),
+  };
+}

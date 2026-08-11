@@ -32,7 +32,7 @@ export const en = {
   },
 
   filterBar: {
-    searchPlaceholder: 'Search name or city...',
+    searchPlaceholder: 'Search name, city, or notes...',
     allTypes: 'All types',
     allCountries: 'All countries',
     allRegions: 'All regions',
@@ -69,6 +69,7 @@ export const en = {
   table: {
     dup: 'DUP?',
     possiblySameAs: (names: string) => `Possibly same as: ${names}`,
+    foundInNotes: 'Found in notes',
     dismiss: 'dismiss',
     notDuplicateDismiss: 'Not a duplicate — dismiss',
     none: 'None',
