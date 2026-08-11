@@ -209,7 +209,11 @@ export const en = {
     importAction: '⬆ Import',
     previewHeading: 'Import preview',
     rowsReadyToImport: (n: number) => `${n} ${n === 1 ? 'row' : 'rows'} ready to import.`,
-    duplicatesExcluded: (n: number) => `${n} likely ${n === 1 ? 'duplicate' : 'duplicates'} excluded automatically:`,
+    duplicatesFound: (n: number) =>
+      `${n} likely ${n === 1 ? 'duplicate' : 'duplicates'} found — excluded by default. Check any you'd like to import anyway (useful for separate hubs of the same company):`,
+    importAnyway: 'Import anyway',
+    selectAllDuplicates: 'Select all',
+    selectNoneDuplicates: 'Select none',
     rowsWillBeSkipped: (n: number) => `${n} ${n === 1 ? 'row' : 'rows'} will be skipped:`,
     rowPrefix: (row: number) => `Row ${row}: `,
     importCount: (n: number) => `Import ${n} ${n === 1 ? 'company' : 'companies'}`,

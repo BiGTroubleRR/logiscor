@@ -5,12 +5,18 @@ import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { outlineButtonStyle, primaryButtonStyle } from '@/lib/styles';
 import { parseImportWorkbook } from '@/lib/company-import-parse';
-import { validateImportRows, partitionDuplicateRows, type ImportedCompanyRow, type ImportRowError } from '@/lib/company-import';
+import {
+  validateImportRows,
+  partitionDuplicateRows,
+  type ImportedCompanyRow,
+  type ImportRowError,
+  type ImportDuplicateEntry,
+} from '@/lib/company-import';
 import { downloadImportTemplate } from '@/lib/company-import-template';
 
 type Stage =
   | { kind: 'idle' }
-  | { kind: 'preview'; unique: ImportedCompanyRow[]; invalid: ImportRowError[]; duplicates: ImportRowError[] }
+  | { kind: 'preview'; unique: ImportedCompanyRow[]; invalid: ImportRowError[]; duplicates: ImportDuplicateEntry[] }
   | { kind: 'importing' }
   | { kind: 'done'; importedCount: number; rowErrors: ImportRowError[] }
   | { kind: 'error'; message: string };
@@ -20,6 +26,10 @@ export default function ImportCompaniesButton() {
   const { locale, t } = useLocale();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
+  // Indices into stage.duplicates that staff have opted to import anyway — e.g. separate hubs
+  // of the same company that share a website domain and got auto-flagged. Empty by default,
+  // matching the previous "exclude duplicates automatically" behavior until reviewed.
+  const [includedDuplicates, setIncludedDuplicates] = useState<Set<number>>(new Set());
 
   async function handleFile(file: File) {
     try {
@@ -30,15 +40,31 @@ export default function ImportCompaniesButton() {
       }
       const { valid, errors } = validateImportRows(raw, locale);
       const { unique, duplicates } = partitionDuplicateRows(valid, companies, locale);
+      setIncludedDuplicates(new Set());
       setStage({ kind: 'preview', unique, invalid: errors, duplicates });
     } catch {
       setStage({ kind: 'error', message: t.importBtn.couldNotRead });
     }
   }
 
-  async function handleConfirm(unique: ImportedCompanyRow[], skipped: ImportRowError[]) {
+  function toggleDuplicate(i: number) {
+    setIncludedDuplicates((set) => {
+      const next = new Set(set);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }
+
+  async function handleConfirm() {
+    if (stage.kind !== 'preview') return;
+    const toImport = [...stage.unique, ...stage.duplicates.filter((_, i) => includedDuplicates.has(i)).map((d) => d.row)];
+    const skipped = [
+      ...stage.invalid,
+      ...stage.duplicates.filter((_, i) => !includedDuplicates.has(i)).map((d) => ({ row: null, reason: d.reason })),
+    ];
     setStage({ kind: 'importing' });
-    const result = await importCompanies(unique);
+    const result = await importCompanies(toImport);
     if (!result) {
       setStage({ kind: 'error', message: t.importBtn.importFailedRetry });
       return;
@@ -48,6 +74,7 @@ export default function ImportCompaniesButton() {
 
   function reset() {
     setStage({ kind: 'idle' });
+    setIncludedDuplicates(new Set());
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -98,15 +125,35 @@ export default function ImportCompaniesButton() {
             {stage.kind === 'preview' && (
               <>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>{t.importBtn.previewHeading}</div>
-                <div style={{ fontSize: 13, color: '#334155', marginBottom: 8 }}>{t.importBtn.rowsReadyToImport(stage.unique.length)}</div>
+                <div style={{ fontSize: 13, color: '#334155', marginBottom: 8 }}>{t.importBtn.rowsReadyToImport(stage.unique.length + includedDuplicates.size)}</div>
                 {stage.duplicates.length > 0 && (
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>{t.importBtn.duplicatesExcluded(stage.duplicates.length)}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 120, overflow: 'auto' }}>
-                      {stage.duplicates.map((e, i) => (
-                        <div key={i} style={{ fontSize: 12, color: '#92400e' }}>
-                          {e.reason}
-                        </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>{t.importBtn.duplicatesFound(stage.duplicates.length)}</div>
+                      <button
+                        onClick={() =>
+                          setIncludedDuplicates((set) =>
+                            set.size === stage.duplicates.length ? new Set() : new Set(stage.duplicates.map((_, i) => i)),
+                          )
+                        }
+                        style={{ border: 'none', background: 'none', color: '#92400e', fontSize: 11, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}
+                      >
+                        {includedDuplicates.size === stage.duplicates.length ? t.importBtn.selectNoneDuplicates : t.importBtn.selectAllDuplicates}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 160, overflow: 'auto' }}>
+                      {stage.duplicates.map((d, i) => (
+                        <label key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12, color: '#92400e', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={includedDuplicates.has(i)}
+                            onChange={() => toggleDuplicate(i)}
+                            style={{ marginTop: 2 }}
+                          />
+                          <span>
+                            {d.reason} <em style={{ fontStyle: 'italic' }}>({t.importBtn.importAnyway})</em>
+                          </span>
+                        </label>
                       ))}
                     </div>
                   </div>
@@ -126,11 +173,11 @@ export default function ImportCompaniesButton() {
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button
-                    onClick={() => handleConfirm(stage.unique, [...stage.invalid, ...stage.duplicates])}
-                    disabled={stage.unique.length === 0}
-                    style={{ ...primaryButtonStyle, opacity: stage.unique.length === 0 ? 0.5 : 1 }}
+                    onClick={handleConfirm}
+                    disabled={stage.unique.length + includedDuplicates.size === 0}
+                    style={{ ...primaryButtonStyle, opacity: stage.unique.length + includedDuplicates.size === 0 ? 0.5 : 1 }}
                   >
-                    {t.importBtn.importCount(stage.unique.length)}
+                    {t.importBtn.importCount(stage.unique.length + includedDuplicates.size)}
                   </button>
                   <button onClick={reset} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
                     {t.importBtn.cancel}

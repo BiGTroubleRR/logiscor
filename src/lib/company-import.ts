@@ -161,12 +161,16 @@ export function validateImportRows(rows: Record<string, unknown>[], locale: Loca
   return { valid, errors };
 }
 
-export type ImportDuplicatePartition = { unique: ImportedCompanyRow[]; duplicates: ImportRowError[] };
+// Keeps the row data (not just a message) so a flagged duplicate can still be imported if
+// staff choose to — see ImportCompaniesButton.tsx's per-row "Import anyway" checkboxes.
+export type ImportDuplicateEntry = { row: ImportedCompanyRow; reason: string };
+export type ImportDuplicatePartition = { unique: ImportedCompanyRow[]; duplicates: ImportDuplicateEntry[] };
 
 // Cross-checks import rows against companies already in the CRM (by normalized name or website
 // domain — same heuristic the "Possible duplicates" table flag uses, see duplicates.ts) and
-// against earlier rows in the same file. Matches are dropped rather than imported automatically;
-// staff review true duplicates manually instead of ending up with silent double entries.
+// against earlier rows in the same file. Matches are excluded from `unique` by default — staff
+// review them and opt individual rows back in (e.g. several hubs of the same company sharing a
+// domain) rather than ending up with silent double entries.
 export function partitionDuplicateRows(
   rows: ImportedCompanyRow[],
   existing: { name: string; website: string }[],
@@ -179,7 +183,7 @@ export function partitionDuplicateRows(
   const seenDomains = new Set<string>();
 
   const unique: ImportedCompanyRow[] = [];
-  const duplicates: ImportRowError[] = [];
+  const duplicates: ImportDuplicateEntry[] = [];
 
   rows.forEach((row) => {
     const n = normalizeCompanyName(row.name);
@@ -189,7 +193,7 @@ export function partitionDuplicateRows(
 
     if (matchesExisting || matchesEarlierRow) {
       duplicates.push({
-        row: null,
+        row,
         reason: v.duplicateSkip(row.name, matchesExisting ? v.matchesExisting : v.duplicateInFile),
       });
       return;

@@ -1,10 +1,14 @@
 // Bulk company import. Re-validates server-side with the same validateImportRows() the client
-// preview uses — never trust that a client-side check ran, or ran honestly.
+// preview uses — never trust that a client-side check ran, or ran honestly. Duplicate detection
+// (partitionDuplicateRows) is deliberately NOT re-applied here: it's a data-quality preview step,
+// not a security boundary, and the client's import preview already lets staff review flagged
+// duplicates and explicitly choose to import specific ones anyway (e.g. separate hubs of the
+// same company sharing a domain) — re-excluding them here would silently undo that choice.
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
-import { insertCompaniesBatch, listCompanies } from '@/lib/supabase/companies';
-import { validateImportRows, partitionDuplicateRows } from '@/lib/company-import';
+import { insertCompaniesBatch } from '@/lib/supabase/companies';
+import { validateImportRows } from '@/lib/company-import';
 import type { Locale } from '@/lib/i18n/locale';
 
 const MAX_ROWS = 2000;
@@ -31,14 +35,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const existing = await listCompanies();
-    const { unique, duplicates } = partitionDuplicateRows(valid, existing, locale);
-    const rowErrors = [...errors, ...duplicates];
-    if (unique.length === 0) {
-      return NextResponse.json({ error: 'No new rows to import — all rows were duplicates.', rowErrors }, { status: 400 });
-    }
-    const companies = await insertCompaniesBatch(unique, `Excel import by ${identity.name}`);
-    return NextResponse.json({ companies, rowErrors });
+    const companies = await insertCompaniesBatch(valid, `Excel import by ${identity.name}`);
+    return NextResponse.json({ companies, rowErrors: errors });
   } catch (e) {
     if (e instanceof MissingServiceRoleKeyError) {
       return NextResponse.json({ error: e.message, code: 'missing_service_role_key' }, { status: 503 });

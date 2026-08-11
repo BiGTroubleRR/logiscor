@@ -224,11 +224,18 @@ export const cs: Dict = {
       if (n >= 2 && n <= 4) return `${n} řádky připravené k importu.`;
       return `${n} řádků připraveno k importu.`;
     },
-    duplicatesExcluded: (n) => {
-      if (n === 1) return '1 pravděpodobný duplikát byl automaticky vyloučen:';
-      if (n >= 2 && n <= 4) return `${n} pravděpodobné duplikáty byly automaticky vyloučeny:`;
-      return `${n} pravděpodobných duplikátů bylo automaticky vyloučeno:`;
+    duplicatesFound: (n) => {
+      const base =
+        n === 1
+          ? '1 pravděpodobný duplikát nalezen'
+          : n >= 2 && n <= 4
+            ? `${n} pravděpodobné duplikáty nalezeny`
+            : `${n} pravděpodobných duplikátů nalezeno`;
+      return `${base} — ve výchozím stavu vyloučeny. Zaškrtněte ty, které chcete přesto importovat (užitečné pro samostatné pobočky téže společnosti):`;
     },
+    importAnyway: 'Importovat i tak',
+    selectAllDuplicates: 'Vybrat vše',
+    selectNoneDuplicates: 'Zrušit výběr',
     rowsWillBeSkipped: (n) => {
       if (n === 1) return '1 řádek bude přeskočen:';
       if (n >= 2 && n <= 4) return `${n} řádky budou přeskočeny:`;
