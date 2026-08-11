@@ -121,7 +121,7 @@ export default function CompanyDrawer() {
           top: 0,
           right: 0,
           height: '100%',
-          width: 460,
+          width: 'min(460px, 100vw)',
           background: '#fff',
           boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
           zIndex: 2000,

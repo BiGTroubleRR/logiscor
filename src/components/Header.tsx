@@ -21,15 +21,17 @@ export default function Header() {
   return (
     <div
       style={{
-        height: 60,
+        minHeight: 60,
         flex: '0 0 auto',
         display: 'flex',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
+        padding: '10px 20px',
         background: '#0f172a',
         color: '#fff',
-        gap: 24,
+        columnGap: 24,
+        rowGap: 8,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>

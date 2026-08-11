@@ -112,7 +112,7 @@ export default function ImportCompaniesButton() {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: 480,
+              width: 'min(480px, calc(100vw - 32px))',
               maxHeight: '80vh',
               overflow: 'auto',
               background: '#fff',
