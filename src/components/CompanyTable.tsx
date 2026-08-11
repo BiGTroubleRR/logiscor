@@ -1,6 +1,6 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { findSnippet, formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
@@ -45,7 +45,12 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
   );
 }
 
-function Row({ c }: { c: CompanyView }) {
+// Memoized: CrmContext's provider value is a fresh object every render (unrelated state changes
+// elsewhere — a keystroke in the drawer, the corridor slider — re-render every consumer), and
+// with 500+ rows that would otherwise re-run this whole function every time. `c` itself only
+// changes reference when `companies`/`filtered`/`sorted` actually recompute, so this bails out
+// on anything else.
+const Row = memo(function Row({ c }: { c: CompanyView }) {
   const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route, filters } = useCrm();
   const { locale, t } = useLocale();
   const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
@@ -216,7 +221,7 @@ function Row({ c }: { c: CompanyView }) {
       </td>
     </tr>
   );
-}
+});
 
 export default function CompanyTable() {
   const { sorted, route } = useCrm();

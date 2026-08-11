@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType, NewCompanyInput, RateQuote } from '@/types/company';
 import type { Identity } from '@/lib/role';
 import { haversineKm, spreadOverlappingCoords } from '@/lib/geo';
@@ -442,14 +442,26 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setRouteMatches(new Map());
   }, []);
 
-  // The corridor slider recomputes matches immediately on change while a search is active —
-  // triggered from the setter itself rather than an effect, so there's no synchronous setState
-  // cascade. Origin/dest changes go through runRouteSearch instead (needs a fresh geocode call).
+  // The corridor slider recomputes matches while a search is active — triggered from the setter
+  // itself rather than an effect, so there's no synchronous setState cascade. Origin/dest changes
+  // go through runRouteSearch instead (needs a fresh geocode call).
+  //
+  // The displayed corridorKm updates immediately (below) so the slider itself never lags, but
+  // the actual recompute — O(companies × route-path-points), matching every company against the
+  // corridor on every tick — is debounced, same as MapView's marker sync, so dragging the slider
+  // doesn't re-run that for every intermediate value.
+  const corridorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setCorridorKm = useCallback(
     (corridorKm: number) => {
       setRoute((r) => ({ ...r, corridorKm }));
       if (route.active && route.originCoord && route.destCoord) {
-        recomputeRouteMatches(route.originCoord, route.destCoord, route.path, corridorKm);
+        const originCoord = route.originCoord;
+        const destCoord = route.destCoord;
+        const path = route.path;
+        if (corridorDebounceRef.current) clearTimeout(corridorDebounceRef.current);
+        corridorDebounceRef.current = setTimeout(() => {
+          recomputeRouteMatches(originCoord, destCoord, path, corridorKm);
+        }, 150);
       }
     },
     [route.active, route.originCoord, route.destCoord, route.path, recomputeRouteMatches],
@@ -829,7 +841,13 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [runMutation],
   );
 
-  const value: CrmContextValue = {
+  // Memoized so a re-render that doesn't actually touch any of this state (e.g. a parent
+  // provider re-rendering for an unrelated reason) reuses the same value reference instead of
+  // forcing every context consumer — including CompanyTable's 500+ rows — to re-render too.
+  // Every field below is already either plain state (stable unless actually set) or itself
+  // wrapped in useCallback/useMemo, so this dependency list is exhaustive but safe.
+  const value: CrmContextValue = useMemo(
+    () => ({
     identity,
     loading,
     loadError,
@@ -896,7 +914,76 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     restoreDuplicate,
     setLabelColor,
     mutationError,
-  };
+    }),
+    [
+      identity,
+      loading,
+      loadError,
+      view,
+      setView,
+      binCompanies,
+      binLoading,
+      openBinView,
+      restoreCompanyAction,
+      permanentlyDeleteCompanyAction,
+      companies,
+      filtered,
+      sorted,
+      filters,
+      setFilters,
+      clearFilters,
+      sort,
+      toggleSort,
+      typeOptions,
+      countryOptions,
+      regionOptions,
+      capabilityOptions,
+      trailerTypeOptions,
+      allCapabilities,
+      allTrailerTypes,
+      duplicateCount,
+      route,
+      setRouteField,
+      setCorridorKm,
+      runRouteSearch,
+      clearRoute,
+      selectedId,
+      selected,
+      openDrawer,
+      closeDrawer,
+      activityLog,
+      activityLoading,
+      rateQuotes,
+      rateQuotesLoading,
+      draft,
+      setDraft,
+      saveStrength,
+      addTag,
+      removeTag,
+      addTrailerType,
+      removeTrailerType,
+      addCompanyType,
+      removeCompanyType,
+      addActivity,
+      addRateQuote,
+      deleteRateQuoteAction,
+      editingDetails,
+      editDraft,
+      editError,
+      startEditDetails,
+      cancelEditDetails,
+      setEditField,
+      saveEditDetails,
+      addCompany,
+      duplicateCompanyAction,
+      importCompanies,
+      deleteCompanyAction,
+      dismissDuplicate,
+      restoreDuplicate,
+      setLabelColor,
+      mutationError,
+    ],
+  );
 
   return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>;
 }

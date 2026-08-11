@@ -1,9 +1,12 @@
 // Client-only: turns an uploaded .xlsx File into header-keyed row objects for
 // validateImportRows() in company-import.ts. Only .xlsx is accepted — one parsing path,
 // through the same library used to generate the template, keeps this predictable.
-import ExcelJS from 'exceljs';
+//
+// exceljs is dynamic-imported (not a top-level import) so it lands in its own chunk instead of
+// the default list view's bundle — it's only ever touched from the Import button.
 
 export async function parseImportWorkbook(file: File): Promise<Record<string, unknown>[]> {
+  const ExcelJS = (await import('exceljs')).default;
   const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);

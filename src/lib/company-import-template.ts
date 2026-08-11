@@ -1,11 +1,14 @@
 // Client-only: builds and downloads the .xlsx template staff fill in for bulk import. Kept
 // separate from company-import.ts (parsing/validation) since this side never runs against
 // untrusted input — it only ever writes a file this app generated itself.
-import ExcelJS from 'exceljs';
+//
+// exceljs is dynamic-imported (not a top-level import) so it lands in its own chunk instead of
+// the default list view's bundle — it's only ever touched from the Template button.
 import { IMPORT_HEADERS, getImportColumnNotes, getReadMeHeaders } from './company-import';
 import type { Locale } from '@/lib/i18n/locale';
 
 export async function downloadImportTemplate(locale: Locale = 'en'): Promise<void> {
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
 
   const sheet = workbook.addWorksheet('Companies');
