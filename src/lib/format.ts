@@ -60,6 +60,23 @@ export function normalizeUrl(website: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+// Regional-indicator-symbol arithmetic — no lookup table needed. Each letter of a 2-letter
+// ISO 3166-1 alpha-2 code maps to a Unicode regional indicator symbol (U+1F1E6 = 🇦 is 'A'
+// + 127397), and a pair of them renders as that country's flag.
+export function flagEmoji(code: string): string {
+  const upper = code.trim().toUpperCase();
+  if (upper.length !== 2) return code;
+  return String.fromCodePoint(...Array.from(upper).map((c) => 127397 + c.charCodeAt(0)));
+}
+
+export function countryNameFromCode(code: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.trim().toUpperCase()) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 export type TextSnippet = { before: string; match: string; after: string };
 
 // Finds the first case-insensitive occurrence of `term` in `text` and returns it as three parts

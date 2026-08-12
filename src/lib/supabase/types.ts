@@ -27,6 +27,8 @@ type CompanyRow = {
   duplicate_dismissed: boolean;
   label_color: string;
   deleted_at: string | null;
+  hub_of: string | null;
+  countries_served: string[];
   created_at: string;
   updated_at: string;
 };
@@ -58,6 +60,7 @@ type RateQuoteRow = {
   rate: number | null;
   dem_ft: string;
   notes: string;
+  expires_at: string | null;
   created_at: string;
 };
 
@@ -65,6 +68,25 @@ type ProfileRow = {
   id: string;
   email: string;
   role: string;
+  created_at: string;
+};
+
+type ProjectRow = {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ProjectCompanyRow = {
+  id: string;
+  project_id: string;
+  company_id: string;
+  added_by: string;
   created_at: string;
 };
 
@@ -93,6 +115,18 @@ export type Database = {
         Row: RateQuoteRow;
         Insert: Partial<RateQuoteRow> & { company_id: string; origin: string; destination: string };
         Update: Partial<RateQuoteRow>;
+        Relationships: [];
+      };
+      projects: {
+        Row: ProjectRow;
+        Insert: Partial<ProjectRow> & { name: string };
+        Update: Partial<ProjectRow>;
+        Relationships: [];
+      };
+      project_companies: {
+        Row: ProjectCompanyRow;
+        Insert: Partial<ProjectCompanyRow> & { project_id: string; company_id: string };
+        Update: Partial<ProjectCompanyRow>;
         Relationships: [];
       };
     };

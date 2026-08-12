@@ -7,6 +7,8 @@ import { findSnippet, formatDateTime, formatTag, tierColor, typeColor } from '@/
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
+import { extractLaneCodes } from '@/lib/lane-codes';
+import FlagIcon from './FlagIcon';
 import type { CompanyView } from '@/types/company';
 import type { Dict } from '@/lib/i18n/en';
 
@@ -60,6 +62,11 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
   const extraCount = c.capability_tags.length - 2;
   const visibleTrailerTypes = c.trailer_types.slice(0, 2);
   const extraTrailerTypeCount = c.trailer_types.length - 2;
+  // Structured field first, falling back to a free-text lane-code parse (see lib/lane-codes.ts)
+  // for companies whose routes-served were only ever written into the description.
+  const routeCodes = c.countries_served.length ? c.countries_served : extractLaneCodes(c.description);
+  const visibleRouteCodes = routeCodes.slice(0, 5);
+  const extraRouteCodeCount = routeCodes.length - 5;
   const emailFlag = emailBadge(c, t);
   const noteMatch = findSnippet(c.description, filters.search);
 
@@ -171,6 +178,18 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
           </div>
         )}
       </td>
+      <td style={td}>
+        {routeCodes.length === 0 ? (
+          <span style={{ color: '#cbd5e1' }}>{t.table.dash}</span>
+        ) : (
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }} title={routeCodes.join(', ')}>
+            {visibleRouteCodes.map((code) => <FlagIcon key={code} code={code} title={code} />)}
+            {extraRouteCodeCount > 0 && (
+              <span style={{ background: '#f1f5f9', color: '#94a3b8', fontSize: 11, padding: '3px 6px', borderRadius: 999 }}>+{extraRouteCodeCount}</span>
+            )}
+          </div>
+        )}
+      </td>
       <td style={{ ...td, textAlign: 'right', color: '#64748b' }}>
         {route.active && (c.distance_to_origin_km != null || c.distance_to_dest_km != null) ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 11 }}>
@@ -241,6 +260,7 @@ export default function CompanyTable() {
               <th style={thStyleNoSort}>{t.table.colCapabilities}</th>
               <SortHeader label={t.table.colStrength} sortKey="strength_score" />
               <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>
+              <th style={thStyleNoSort}>{t.table.colFlags}</th>
               <SortHeader label={distanceLabel} sortKey="distance_km" />
               <SortHeader label={t.table.colLastModified} sortKey="updated_at" />
               <th style={thStyleNoSort}>{t.table.colColor}</th>

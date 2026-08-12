@@ -1,10 +1,10 @@
-// Duplicates a company under a "HUB N" name (see nextHubName in duplicates.ts). Looks the
-// original up server-side rather than trusting a client-supplied copy of its fields.
+// Adds a "hub" duplicate of a company — same name, `hub_of` pointing at the original (see
+// duplicateCompany in supabase/companies.ts). Looks the original up server-side rather than
+// trusting a client-supplied copy of its fields.
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
 import { listCompanies, duplicateCompany } from '@/lib/supabase/companies';
-import { nextHubName } from '@/lib/duplicates';
 
 export async function POST(request: Request) {
   const identity = await getIdentity();
@@ -18,11 +18,10 @@ export async function POST(request: Request) {
     const original = companies.find((c) => c.id === body.id);
     if (!original) return NextResponse.json({ error: 'Company not found.' }, { status: 404 });
 
-    const newName = nextHubName(
-      original.name,
-      companies.map((c) => c.name),
-    );
-    const company = await duplicateCompany(original, newName);
+    // The original itself counts as hub 1, so the next duplicate is existing siblings + 2.
+    const siblingCount = companies.filter((c) => c.hub_of === original.id).length;
+    const hubNumber = siblingCount + 2;
+    const company = await duplicateCompany(original, hubNumber);
     return NextResponse.json({ company });
   } catch (e) {
     if (e instanceof MissingServiceRoleKeyError) {

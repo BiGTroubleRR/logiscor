@@ -13,6 +13,7 @@
     "@supabase/supabase-js": "^2.112.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "country-flag-icons": "^1.6.20",
     "exceljs": "^4.4.0",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",

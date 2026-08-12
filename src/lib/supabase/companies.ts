@@ -5,6 +5,7 @@
 import { createAdminClient } from './admin-server';
 import type { Company, ActivityLogEntry, NewCompanyInput, ActivityType } from '@/types/company';
 import type { ImportedCompanyRow } from '@/lib/company-import';
+import { hubNoteText, appendHubNote } from '@/lib/duplicates';
 
 export async function listCompanies(): Promise<Company[]> {
   const supabase = createAdminClient();
@@ -85,16 +86,18 @@ export async function insertCompaniesBatch(rows: ImportedCompanyRow[], source: s
   return (data ?? []) as unknown as Company[];
 }
 
-// Copies every substantive field from `original` under a new name (see nextHubName in
-// duplicates.ts) — score/rationale and the duplicate-dismissed flag reset, since those are
-// judgements about the specific row, not the underlying company data.
-export async function duplicateCompany(original: Company, newName: string): Promise<Company> {
+// Copies every substantive field from `original` as a "hub" of it — same name, `hub_of`
+// pointing at the original, and a note recording the relationship appended to the
+// description (see hubNoteText/appendHubNote in duplicates.ts). Score/rationale and the
+// duplicate-dismissed flag reset, since those are judgements about the specific row, not
+// the underlying company data. `hubNumber` is computed by the caller from sibling count.
+export async function duplicateCompany(original: Company, hubNumber: number): Promise<Company> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('companies')
     .insert({
       id: crypto.randomUUID(),
-      name: newName,
+      name: original.name,
       type: original.type,
       types: original.types,
       country: original.country,
@@ -109,7 +112,7 @@ export async function duplicateCompany(original: Company, newName: string): Prom
       mulda_presence: original.mulda_presence,
       distance_km: null,
       distance_anchor: '',
-      description: original.description,
+      description: appendHubNote(original.description, hubNoteText(original.name, hubNumber)),
       website: original.website,
       email: original.email,
       phone: original.phone,
@@ -120,6 +123,7 @@ export async function duplicateCompany(original: Company, newName: string): Prom
       strength_rationale: '',
       duplicate_dismissed: false,
       label_color: original.label_color,
+      hub_of: original.id,
     })
     .select('*')
     .single();
@@ -142,6 +146,18 @@ export async function updateCapabilityTags(id: string, tags: string[]): Promise<
   const { data, error } = await supabase
     .from('companies')
     .update({ capability_tags: tags })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function updateCountriesServed(id: string, codes: string[]): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('companies')
+    .update({ countries_served: codes })
     .eq('id', id)
     .select('*')
     .single();

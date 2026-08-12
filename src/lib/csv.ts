@@ -1,6 +1,7 @@
 import type { Company } from '@/types/company';
 
-const COLUMNS = [
+// Shared with xlsx-export.ts so both export formats stay in lockstep with one source of truth.
+export const COLUMNS = [
   'name',
   'type',
   'country',

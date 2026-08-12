@@ -3,6 +3,7 @@
 import type { ActivityLogEntry, ActivityType, Company, NewCompanyInput, RateQuote } from '@/types/company';
 import type { Identity } from '@/lib/role';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
+import type { NewProjectInput, Project, ProjectCompanyLink } from '@/types/project';
 
 async function unwrap<T>(res: Response, key: string): Promise<T> {
   const body = await res.json().catch(() => ({}));
@@ -93,6 +94,15 @@ export async function saveTrailerTypes(id: string, types: string[]): Promise<Com
   return unwrap<Company>(res, 'company');
 }
 
+export async function saveCountriesServedApi(id: string, codes: string[]): Promise<Company> {
+  const res = await fetch('/api/companies/countries-served', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, codes }),
+  });
+  return unwrap<Company>(res, 'company');
+}
+
 export async function saveCompanyTypes(id: string, types: string[]): Promise<Company> {
   const res = await fetch('/api/companies/types', {
     method: 'PATCH',
@@ -174,6 +184,7 @@ export type NewRateQuoteInput = {
   rate: number | null;
   demFt: string;
   notes: string;
+  expiresAt: string | null;
 };
 
 export async function addRateQuoteApi(companyId: string, input: NewRateQuoteInput): Promise<RateQuote> {
@@ -185,11 +196,68 @@ export async function addRateQuoteApi(companyId: string, input: NewRateQuoteInpu
   return unwrap<RateQuote>(res, 'quote');
 }
 
+export async function updateRateQuoteApi(id: string, input: NewRateQuoteInput): Promise<RateQuote> {
+  const res = await fetch('/api/companies/rates', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...input }),
+  });
+  return unwrap<RateQuote>(res, 'quote');
+}
+
 export async function deleteRateQuoteApi(id: string): Promise<void> {
   const res = await fetch('/api/companies/rates', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id }),
+  });
+  await unwrap<{ ok: true }>(res, 'ok');
+}
+
+export async function fetchProjects(): Promise<{ projects: Project[]; links: ProjectCompanyLink[] }> {
+  const res = await fetch('/api/projects', { cache: 'no-store' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status}).`);
+  return { projects: body.projects ?? [], links: body.links ?? [] };
+}
+
+export async function createProject(): Promise<Project> {
+  const res = await fetch('/api/projects', { method: 'POST' });
+  return unwrap<Project>(res, 'project');
+}
+
+export async function updateProjectApi(id: string, patch: Partial<NewProjectInput>): Promise<Project> {
+  const res = await fetch('/api/projects', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, patch }),
+  });
+  return unwrap<Project>(res, 'project');
+}
+
+export async function deleteProjectApi(id: string): Promise<void> {
+  const res = await fetch('/api/projects', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  await unwrap<{ ok: true }>(res, 'ok');
+}
+
+export async function addCompanyToProjectApi(projectId: string, companyId: string): Promise<ProjectCompanyLink> {
+  const res = await fetch(`/api/projects/${projectId}/companies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ companyId }),
+  });
+  return unwrap<ProjectCompanyLink>(res, 'link');
+}
+
+export async function removeCompanyFromProjectApi(projectId: string, companyId: string): Promise<void> {
+  const res = await fetch(`/api/projects/${projectId}/companies`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ companyId }),
   });
   await unwrap<{ ok: true }>(res, 'ok');
 }

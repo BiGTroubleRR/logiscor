@@ -104,6 +104,20 @@ create table if not exists public.companies (
   -- Bin is manually managed (restore or permanently delete) rather than time-expiring.
   deleted_at timestamptz,
 
+  -- Set when this row is a hub duplicate (see the "Add Hub" button in CompanyDrawer.tsx) —
+  -- points at the original company. The duplicated name stays unchanged; the hub relationship
+  -- is noted in `description` instead (see appendHubNote in duplicates.ts) and this column is
+  -- the structured signal MapView.tsx's "show hub duplicates" toggle filters on. Null for both
+  -- ordinary companies and originals themselves. on delete set null (not cascade): deleting the
+  -- original shouldn't take its hubs down with it.
+  hub_of text references public.companies (id) on delete set null,
+
+  -- ISO 3166-1 alpha-2 codes for countries this carrier is known to serve routes into/out of —
+  -- structured alternative to parsing free-text lane codes out of `description` (e.g.
+  -- "CZ-AT-IT-SI"); see the flags column in CompanyTable.tsx and src/lib/lane-codes.ts's
+  -- fallback parser for companies that don't have this filled in yet.
+  countries_served text[] not null default '{}',
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -115,6 +129,7 @@ create index if not exists companies_type_idx on public.companies (type);
 create index if not exists companies_country_idx on public.companies (country);
 create index if not exists companies_pending_review_idx on public.companies (pending_review) where pending_review;
 create index if not exists companies_deleted_at_idx on public.companies (deleted_at);
+create index if not exists companies_hub_of_idx on public.companies (hub_of) where hub_of is not null;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -153,7 +168,7 @@ create index if not exists activity_log_company_id_idx on public.activity_log (c
 -- ---------------------------------------------------------------------------
 -- rate_quotes — freight rates staff have actually received from a company for a given
 -- origin/destination lane, so past quotes are on hand next time a similar lane comes up.
--- Append-only from the UI (add/delete, no edit), same as activity_log.
+-- Editable from the UI (add/edit/delete) — CompanyDrawer.tsx's "Rates Received" section.
 -- ---------------------------------------------------------------------------
 -- Cargo/vehicle-type-shaped columns are unconstrained text (no CHECK), same approach as
 -- capability_tags/trailer_types on companies: the option lists in
@@ -181,6 +196,11 @@ create table if not exists public.rate_quotes (
   rate numeric,
   dem_ft text not null default '',
   notes text not null default '',
+
+  -- Optional — null means "no expiration". CompanyDrawer.tsx shows an "Expired" badge once
+  -- this date has passed.
+  expires_at date,
+
   created_at timestamptz not null default now()
 );
 
@@ -188,3 +208,48 @@ alter table public.rate_quotes enable row level security;
 -- Deliberately no policies here — see the note at the top of this file.
 
 create index if not exists rate_quotes_company_id_idx on public.rate_quotes (company_id);
+
+-- ---------------------------------------------------------------------------
+-- projects — group companies cooperated with on a specific freight-procurement project.
+-- Own management page (ProjectsView.tsx/ProjectDrawer.tsx); companies attach via the
+-- project_companies join table below.
+-- ---------------------------------------------------------------------------
+create table if not exists public.projects (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text not null default '',
+  status text not null default 'active'
+    check (status in ('active', 'on_hold', 'completed', 'cancelled')),
+  start_date date,
+  end_date date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.projects enable row level security;
+-- Deliberately no policies here — see the note at the top of this file.
+
+create index if not exists projects_status_idx on public.projects (status);
+
+drop trigger if exists projects_set_updated_at on public.projects;
+create trigger projects_set_updated_at
+  before update on public.projects
+  for each row execute procedure public.set_updated_at(); -- reuses the fn defined above for companies
+
+-- ---------------------------------------------------------------------------
+-- project_companies — many-to-many join between projects and companies.
+-- ---------------------------------------------------------------------------
+create table if not exists public.project_companies (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects (id) on delete cascade,
+  company_id text not null references public.companies (id) on delete cascade,
+  added_by text not null default '',
+  created_at timestamptz not null default now(),
+  unique (project_id, company_id)
+);
+
+alter table public.project_companies enable row level security;
+-- Deliberately no policies here — see the note at the top of this file.
+
+create index if not exists project_companies_project_id_idx on public.project_companies (project_id);
+create index if not exists project_companies_company_id_idx on public.project_companies (company_id);

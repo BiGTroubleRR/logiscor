@@ -37,6 +37,13 @@ export type Company = {
   duplicate_dismissed: boolean;
   label_color: string;
   deleted_at: string | null;
+  // Set on a company created via the "Add Hub" action — points at the original it's a hub
+  // duplicate of. Hidden from the map by default (see showHubsOnMap in CrmContext.tsx).
+  hub_of: string | null;
+  // ISO 3166-1 alpha-2 codes for routes this carrier serves — structured field for the flags
+  // column, falling back to lib/lane-codes.ts's free-text parse where staff haven't filled
+  // this in yet (see extractLaneCodes).
+  countries_served: string[];
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +77,7 @@ export type RateQuote = {
   rate: number | null;
   dem_ft: string;
   notes: string;
+  expires_at: string | null;
   created_at: string;
 };
 

@@ -60,7 +60,7 @@ function markerIcon(L: typeof LeafletNS, c: CompanyView): LeafletNS.DivIcon {
 }
 
 export default function MapView() {
-  const { filtered, route, openDrawer } = useCrm();
+  const { mapFiltered: filtered, showHubsOnMap, setShowHubsOnMap, route, openDrawer } = useCrm();
   const { t } = useLocale();
   const mapDivRef = useRef<HTMLDivElement | null>(null);
   const [leafletReady, setLeafletReady] = useState(false);
@@ -233,6 +233,10 @@ export default function MapView() {
             </div>
           ))}
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#334155', cursor: 'pointer', borderTop: '1px solid #e2e8f0', paddingTop: 8 }}>
+          <input type="checkbox" checked={showHubsOnMap} onChange={(e) => setShowHubsOnMap(e.target.checked)} />
+          {t.mapView.showHubs}
+        </label>
       </div>
     </div>
   );

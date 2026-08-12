@@ -1,12 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { lightSelectStyle, linkButtonStyle, outlineButtonStyle, primaryButtonStyle } from '@/lib/styles';
 import { formatTag } from '@/lib/format';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { companiesToCsv, downloadCsv } from '@/lib/csv';
+import { downloadCompaniesXlsx } from '@/lib/xlsx-export';
 import ImportCompaniesButton from './ImportCompaniesButton';
+import RfqEmailModal from './RfqEmailModal';
 
 export default function FilterBar() {
   const {
@@ -18,15 +21,17 @@ export default function FilterBar() {
     regionOptions,
     capabilityOptions,
     trailerTypeOptions,
+    projectOptions,
     duplicateCount,
     filtered,
     addCompany,
+    route,
   } = useCrm();
   const { locale, t } = useLocale();
   const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
+  const [showRfqModal, setShowRfqModal] = useState(false);
 
-  const emailAddrs = Array.from(new Set(filtered.map((c) => c.email).filter(Boolean)));
-  const emailHref = emailAddrs.length ? 'mailto:' + emailAddrs.map(encodeURIComponent).join(',') : undefined;
+  const recipients = filtered.filter((c) => c.email).map((c) => ({ name: c.name, email: c.email }));
 
   return (
     <div
@@ -94,6 +99,15 @@ export default function FilterBar() {
         ))}
       </select>
 
+      <select value={filters.project} onChange={(e) => setFilters({ project: e.target.value })} style={lightSelectStyle}>
+        <option value="all">{t.filterBar.allProjects}</option>
+        {projectOptions.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.duplicatesOnly} onChange={() => setFilters({ duplicatesOnly: !filters.duplicatesOnly })} />
         {t.filterBar.possibleDuplicatesOnly(duplicateCount)}
@@ -106,23 +120,37 @@ export default function FilterBar() {
       <div style={{ flex: 1 }} />
 
       <button
-        onClick={() => emailHref && (window.location.href = emailHref)}
-        disabled={!emailHref}
+        onClick={() => setShowRfqModal(true)}
+        disabled={recipients.length === 0}
         style={{
           ...outlineButtonStyle,
-          background: emailHref ? '#fff' : '#f1f5f9',
-          color: emailHref ? '#0f172a' : '#94a3b8',
-          cursor: emailHref ? 'pointer' : 'not-allowed',
+          background: recipients.length ? '#fff' : '#f1f5f9',
+          color: recipients.length ? '#0f172a' : '#94a3b8',
+          cursor: recipients.length ? 'pointer' : 'not-allowed',
           fontWeight: 600,
         }}
       >
-        {t.filterBar.emailFiltered(emailAddrs.length)}
+        {t.filterBar.emailFiltered(recipients.length)}
       </button>
+      {showRfqModal && (
+        <RfqEmailModal
+          companies={recipients}
+          onClose={() => setShowRfqModal(false)}
+          originText={route.active ? route.originText : undefined}
+          destText={route.active ? route.destText : undefined}
+        />
+      )}
       <button
         onClick={() => downloadCsv(companiesToCsv(filtered))}
         style={{ ...outlineButtonStyle, background: '#fff', color: '#0f172a', fontWeight: 600 }}
       >
         {t.filterBar.exportCsv}
+      </button>
+      <button
+        onClick={() => downloadCompaniesXlsx(filtered)}
+        style={{ ...outlineButtonStyle, background: '#fff', color: '#0f172a', fontWeight: 600 }}
+      >
+        {t.filterBar.exportXlsx}
       </button>
       <ImportCompaniesButton />
       <button onClick={addCompany} style={primaryButtonStyle}>

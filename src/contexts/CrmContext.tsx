@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Company, CompanyView, ActivityLogEntry, ActivityType, CompanyType, NewCompanyInput, RateQuote } from '@/types/company';
+import type { NewProjectInput, Project, ProjectCompanyLink, ProjectView } from '@/types/project';
 import type { Identity } from '@/lib/role';
 import { haversineKm, spreadOverlappingCoords } from '@/lib/geo';
 import { computeDuplicateFlags } from '@/lib/duplicates';
@@ -9,6 +10,8 @@ import { matchCompanyAgainstRoute, type RouteMatchResult } from '@/lib/route-mat
 import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
+import { PRESET_COUNTRY_CODES } from '@/lib/countries-served';
+import { primaryButtonStyle } from '@/lib/styles';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
 import { useLocale } from './LocaleContext';
@@ -19,6 +22,7 @@ export type FilterState = {
   region: string;
   capability: string;
   trailerType: string;
+  project: string;
   duplicatesOnly: boolean;
   search: string;
 };
@@ -29,6 +33,7 @@ const DEFAULT_FILTERS: FilterState = {
   region: 'all',
   capability: 'all',
   trailerType: 'all',
+  project: 'all',
   duplicatesOnly: false,
   search: '',
 };
@@ -87,6 +92,8 @@ export type DrawerDraft = {
   tagChoice: string;
   trailerTypeChoice: string;
   companyTypeChoice: string;
+  projectChoice: string;
+  countryChoice: string;
   activityType: ActivityType;
   activityNote: string;
   rateOrigin: string;
@@ -103,6 +110,7 @@ export type DrawerDraft = {
   rateAmount: string;
   rateDemFt: string;
   rateNotes: string;
+  rateExpiresAt: string;
 };
 
 const EMPTY_RATE_DRAFT_FIELDS = {
@@ -120,14 +128,15 @@ const EMPTY_RATE_DRAFT_FIELDS = {
   rateAmount: '',
   rateDemFt: '',
   rateNotes: '',
+  rateExpiresAt: '',
 };
 
 type CrmContextValue = {
   identity: Identity | null;
   loading: boolean;
   loadError: string;
-  view: 'list' | 'map' | 'bin';
-  setView: (v: 'list' | 'map' | 'bin') => void;
+  view: 'list' | 'map' | 'bin' | 'projects';
+  setView: (v: 'list' | 'map' | 'bin' | 'projects') => void;
 
   binCompanies: Company[];
   binLoading: boolean;
@@ -135,9 +144,36 @@ type CrmContextValue = {
   restoreCompanyAction: (id: string) => Promise<void>;
   permanentlyDeleteCompanyAction: (id: string) => Promise<void>;
 
+  projects: Project[];
+  projectViews: ProjectView[];
+  projectOptions: { value: string; label: string }[];
+  companyIdsByProject: Map<string, Set<string>>;
+  selectedProjectIds: Set<string>;
+  selectedProjectId: string | null;
+  selectedProject: Project | null;
+  openProjectDrawer: (id: string) => void;
+  closeProjectDrawer: () => void;
+  addProject: () => Promise<void>;
+  deleteProjectAction: (id: string) => Promise<void>;
+  editingProject: boolean;
+  projectDraft: NewProjectInput | null;
+  startEditProject: () => void;
+  cancelEditProject: () => void;
+  setProjectField: <K extends keyof NewProjectInput>(key: K, value: NewProjectInput[K]) => void;
+  saveProjectDetails: () => Promise<void>;
+  addCompanyToProjectAction: (projectId: string, companyId: string) => Promise<void>;
+  removeCompanyFromProjectAction: (projectId: string, companyId: string) => Promise<void>;
+  addCompanyToSelectedProject: () => Promise<void>;
+  removeCompanyFromSelectedProject: (projectId: string) => Promise<void>;
+
   companies: CompanyView[];
   filtered: CompanyView[];
   sorted: CompanyView[];
+  // Map-only — hub duplicates clutter the map (same coordinates as their original) but are
+  // still useful in the list, so this is a separate toggle rather than part of FilterState.
+  showHubsOnMap: boolean;
+  setShowHubsOnMap: (show: boolean) => void;
+  mapFiltered: CompanyView[];
   filters: FilterState;
   setFilters: (patch: Partial<FilterState>) => void;
   clearFilters: () => void;
@@ -151,6 +187,7 @@ type CrmContextValue = {
   trailerTypeOptions: { value: string; label: string }[];
   allCapabilities: string[];
   allTrailerTypes: string[];
+  allCountriesServed: string[];
   duplicateCount: number;
 
   route: RouteState;
@@ -177,9 +214,15 @@ type CrmContextValue = {
   removeTrailerType: (type: string) => Promise<void>;
   addCompanyType: () => Promise<void>;
   removeCompanyType: (type: string) => Promise<void>;
+  addCountryServed: () => Promise<void>;
+  removeCountryServed: (code: string) => Promise<void>;
   addActivity: () => Promise<void>;
   addRateQuote: () => Promise<void>;
   deleteRateQuoteAction: (id: string) => Promise<void>;
+  editingRateId: string | null;
+  startEditRateQuote: (quote: RateQuote) => void;
+  cancelEditRateQuote: () => void;
+  saveRateQuoteEdit: () => Promise<void>;
 
   editingDetails: boolean;
   editDraft: EditDraft | null;
@@ -210,10 +253,16 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [rawCompanies, setRawCompanies] = useState<Company[]>([]);
   const [mutationError, setMutationError] = useState('');
 
-  const [view, setView] = useState<'list' | 'map' | 'bin'>('list');
+  const [view, setView] = useState<'list' | 'map' | 'bin' | 'projects'>('list');
   const [binCompanies, setBinCompanies] = useState<Company[]>([]);
   const [binLoading, setBinLoading] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectLinks, setProjectLinks] = useState<ProjectCompanyLink[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState(false);
+  const [projectDraft, setProjectDraftState] = useState<NewProjectInput | null>(null);
   const [filters, setFiltersState] = useState<FilterState>(DEFAULT_FILTERS);
+  const [showHubsOnMap, setShowHubsOnMap] = useState(false);
   const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' });
   const [route, setRoute] = useState<RouteState>(DEFAULT_ROUTE);
   const [routeMatches, setRouteMatches] = useState<Map<string, RouteMatchResult>>(new Map());
@@ -223,12 +272,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [activityLoading, setActivityLoading] = useState(false);
   const [rateQuotes, setRateQuotes] = useState<RateQuote[]>([]);
   const [rateQuotesLoading, setRateQuotesLoading] = useState(false);
+  const [editingRateId, setEditingRateId] = useState<string | null>(null);
   const [draft, setDraftState] = useState<DrawerDraft>({
     strength: 0,
     rationale: '',
     tagChoice: '',
     trailerTypeChoice: '',
     companyTypeChoice: '',
+    projectChoice: '',
+    countryChoice: '',
     activityType: 'Call',
     activityNote: '',
     ...EMPTY_RATE_DRAFT_FIELDS,
@@ -243,10 +295,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const [ident, comps] = await Promise.all([api.fetchIdentity(), api.fetchCompanies()]);
+        const [ident, comps, projectData] = await Promise.all([api.fetchIdentity(), api.fetchCompanies(), api.fetchProjects()]);
         if (cancelled) return;
         setIdentity(ident);
         setRawCompanies(comps);
+        setProjects(projectData.projects);
+        setProjectLinks(projectData.links);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : t.errors.failedToLoad);
       } finally {
@@ -292,6 +346,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [companies],
   );
 
+  // Same reasoning as allCapabilities above — see src/lib/countries-served.ts.
+  const allCountriesServed = useMemo(
+    () => Array.from(new Set([...PRESET_COUNTRY_CODES, ...companies.flatMap((c) => c.countries_served)])).sort(),
+    [companies],
+  );
+
   const typeOptions = useMemo(
     () => Array.from(new Set(companies.flatMap((c) => c.types))).sort().map((t) => ({ value: t, label: t })),
     [companies],
@@ -307,6 +367,37 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const capabilityOptions = useMemo(() => allCapabilities.map((t) => ({ value: t, label: t })), [allCapabilities]);
   const trailerTypeOptions = useMemo(() => allTrailerTypes.map((t) => ({ value: t, label: t })), [allTrailerTypes]);
 
+  // Companies assigned to each project — derived from the flat join-table list, same
+  // one-pass-Map-building idiom as computeDuplicateFlags in duplicates.ts.
+  const companyIdsByProject = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    projectLinks.forEach((link) => {
+      const set = map.get(link.project_id);
+      if (set) set.add(link.company_id);
+      else map.set(link.project_id, new Set([link.company_id]));
+    });
+    return map;
+  }, [projectLinks]);
+
+  // Inverse of the above — which projects a given company belongs to, for the drawer's
+  // Projects chip section.
+  const projectIdsByCompany = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    projectLinks.forEach((link) => {
+      const set = map.get(link.company_id);
+      if (set) set.add(link.project_id);
+      else map.set(link.company_id, new Set([link.project_id]));
+    });
+    return map;
+  }, [projectLinks]);
+
+  const projectOptions = useMemo(() => projects.map((p) => ({ value: p.id, label: p.name })).sort((a, b) => a.label.localeCompare(b.label)), [projects]);
+
+  const projectViews = useMemo<ProjectView[]>(
+    () => projects.map((p) => ({ ...p, companyCount: companyIdsByProject.get(p.id)?.size ?? 0 })),
+    [projects, companyIdsByProject],
+  );
+
   const filtered = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
     return companies.filter(
@@ -316,6 +407,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.region === 'all' || c.region === filters.region) &&
         (filters.capability === 'all' || c.capability_tags.includes(filters.capability)) &&
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
+        (filters.project === 'all' || companyIdsByProject.get(filters.project)?.has(c.id)) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (!route.active || c.routeMatch) &&
         (search === '' ||
@@ -323,7 +415,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
           c.city.toLowerCase().includes(search) ||
           c.description.toLowerCase().includes(search)),
     );
-  }, [companies, filters, route.active]);
+  }, [companies, filters, route.active, companyIdsByProject]);
+
+  const mapFiltered = useMemo(
+    () => (showHubsOnMap ? filtered : filtered.filter((c) => !c.hub_of)),
+    [filtered, showHubsOnMap],
+  );
 
   const sorted = useMemo(() => {
     const key = sort.key;
@@ -339,6 +436,18 @@ export function CrmProvider({ children }: { children: ReactNode }) {
 
   const selected = useMemo(() => (selectedId ? companies.find((c) => c.id === selectedId) ?? null : null), [companies, selectedId]);
 
+  const selectedProject = useMemo(
+    () => (selectedProjectId ? projects.find((p) => p.id === selectedProjectId) ?? null : null),
+    [projects, selectedProjectId],
+  );
+
+  // The projects the currently-open COMPANY (not project) belongs to — used by the drawer's
+  // Projects chip section, distinct from selectedProjectId/selectedProject above.
+  const selectedProjectIds = useMemo(
+    () => (selectedId ? projectIdsByCompany.get(selectedId) ?? new Set<string>() : new Set<string>()),
+    [selectedId, projectIdsByCompany],
+  );
+
   // ---- mutation helper ----
   const runMutation = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | null> => {
     setMutationError('');
@@ -349,6 +458,21 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, [t]);
+
+  // ---- confirm dialog ----
+  // window.confirm() is silently suppressed (returns false with no dialog shown) in sandboxed
+  // iframe previews that don't grant the "modals" permission — every destructive action gated
+  // on it would otherwise no-op with no visible feedback. This in-app modal (rendered below,
+  // in the Provider's own JSX) works in every embedding context.
+  const [confirmState, setConfirmState] = useState<{ message: string; resolve: (ok: boolean) => void } | null>(null);
+  const askConfirm = useCallback((message: string): Promise<boolean> => new Promise((resolve) => setConfirmState({ message, resolve })), []);
+  const respondConfirm = useCallback(
+    (ok: boolean) => {
+      confirmState?.resolve(ok);
+      setConfirmState(null);
+    },
+    [confirmState],
+  );
 
   function patchCompanyLocal(updated: Company) {
     setRawCompanies((list) => list.map((c) => (c.id === updated.id ? updated : c)));
@@ -483,12 +607,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setEditingDetails(false);
       setEditDraftState(null);
       setEditError('');
+      setEditingRateId(null);
       setDraftState({
         strength: c.strength_score ?? 0,
         rationale: c.strength_rationale,
         tagChoice: '',
         trailerTypeChoice: '',
         companyTypeChoice: '',
+        projectChoice: '',
+        countryChoice: '',
         activityType: 'Call',
         activityNote: '',
         ...EMPTY_RATE_DRAFT_FIELDS,
@@ -513,6 +640,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setSelectedId(null);
     setEditingDetails(false);
     setEditDraftState(null);
+    setEditingRateId(null);
     setActivityLog([]);
     setRateQuotes([]);
   }, []);
@@ -538,6 +666,26 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       if (!selectedId || !selected) return;
       const tags = selected.capability_tags.filter((t) => t !== tag);
       const updated = await runMutation(() => api.saveCapabilityTags(selectedId, tags));
+      if (updated) patchCompanyLocal(updated);
+    },
+    [selectedId, selected, runMutation],
+  );
+
+  const addCountryServed = useCallback(async () => {
+    if (!selectedId || !draft.countryChoice || !selected) return;
+    const codes = [...selected.countries_served, draft.countryChoice];
+    const updated = await runMutation(() => api.saveCountriesServedApi(selectedId, codes));
+    if (updated) {
+      patchCompanyLocal(updated);
+      setDraftState((d) => ({ ...d, countryChoice: '' }));
+    }
+  }, [selectedId, draft.countryChoice, selected, runMutation]);
+
+  const removeCountryServed = useCallback(
+    async (code: string) => {
+      if (!selectedId || !selected) return;
+      const codes = selected.countries_served.filter((c) => c !== code);
+      const updated = await runMutation(() => api.saveCountriesServedApi(selectedId, codes));
       if (updated) patchCompanyLocal(updated);
     },
     [selectedId, selected, runMutation],
@@ -611,6 +759,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         rate: amount != null && Number.isFinite(amount) ? amount : null,
         demFt: draft.rateDemFt,
         notes: draft.rateNotes,
+        expiresAt: draft.rateExpiresAt || null,
       }),
     );
     if (quote) {
@@ -633,7 +782,84 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     draft.rateAmount,
     draft.rateDemFt,
     draft.rateNotes,
+    draft.rateExpiresAt,
     runMutation,
+  ]);
+
+  // Inline edit of an existing quote — reuses the same draft fields/form the "add" flow
+  // renders, just pre-filled and routed to updateRateQuoteApi instead of addRateQuoteApi.
+  const startEditRateQuote = useCallback((quote: RateQuote) => {
+    setEditingRateId(quote.id);
+    setDraftState((d) => ({
+      ...d,
+      rateOrigin: quote.origin,
+      rateDestination: quote.destination,
+      rateTransportMode: quote.transport_mode,
+      rateLoadType: quote.load_type,
+      rateContainerType: quote.container_type,
+      rateVehicleType: quote.vehicle_type,
+      rateCapacity: quote.capacity,
+      rateCargoType: quote.cargo_type,
+      rateHazmatClass: quote.hazmat_class,
+      rateServiceType: quote.service_type,
+      rateDeliveryScope: quote.delivery_scope,
+      rateAmount: quote.rate != null ? String(quote.rate) : '',
+      rateDemFt: quote.dem_ft,
+      rateNotes: quote.notes,
+      rateExpiresAt: quote.expires_at ?? '',
+    }));
+  }, []);
+
+  const cancelEditRateQuote = useCallback(() => {
+    setEditingRateId(null);
+    setDraftState((d) => ({ ...d, ...EMPTY_RATE_DRAFT_FIELDS }));
+  }, []);
+
+  const saveRateQuoteEdit = useCallback(async () => {
+    if (!editingRateId || !draft.rateOrigin.trim() || !draft.rateDestination.trim()) return;
+    const amount = draft.rateAmount.trim() ? Number(draft.rateAmount) : null;
+    const updated = await runMutation(() =>
+      api.updateRateQuoteApi(editingRateId, {
+        origin: draft.rateOrigin,
+        destination: draft.rateDestination,
+        transportMode: draft.rateTransportMode,
+        loadType: draft.rateLoadType,
+        containerType: draft.rateContainerType,
+        vehicleType: draft.rateVehicleType,
+        capacity: draft.rateCapacity,
+        cargoType: draft.rateCargoType,
+        hazmatClass: draft.rateHazmatClass,
+        serviceType: draft.rateServiceType,
+        deliveryScope: draft.rateDeliveryScope,
+        rate: amount != null && Number.isFinite(amount) ? amount : null,
+        demFt: draft.rateDemFt,
+        notes: draft.rateNotes,
+        expiresAt: draft.rateExpiresAt || null,
+      }),
+    );
+    if (updated) {
+      setRateQuotes((quotes) => quotes.map((q) => (q.id === updated.id ? updated : q)));
+      cancelEditRateQuote();
+    }
+  }, [
+    editingRateId,
+    draft.rateOrigin,
+    draft.rateDestination,
+    draft.rateTransportMode,
+    draft.rateLoadType,
+    draft.rateContainerType,
+    draft.rateVehicleType,
+    draft.rateCapacity,
+    draft.rateCargoType,
+    draft.rateHazmatClass,
+    draft.rateServiceType,
+    draft.rateDeliveryScope,
+    draft.rateAmount,
+    draft.rateDemFt,
+    draft.rateNotes,
+    draft.rateExpiresAt,
+    runMutation,
+    cancelEditRateQuote,
   ]);
 
   const deleteRateQuoteAction = useCallback(
@@ -776,14 +1002,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const deleteCompanyAction = useCallback(
     async (id: string) => {
       const c = rawCompanies.find((x) => x.id === id);
-      if (c && !window.confirm(t.errors.confirmDeleteCompany(c.name))) return;
+      if (c && !(await askConfirm(t.errors.confirmDeleteCompany(c.name)))) return;
       const ok = await runMutation(() => api.deleteCompanyApi(id));
       if (ok !== null) {
         setRawCompanies((list) => list.filter((x) => x.id !== id));
         if (selectedId === id) closeDrawer();
       }
     },
-    [rawCompanies, runMutation, selectedId, closeDrawer, t],
+    [rawCompanies, runMutation, selectedId, closeDrawer, t, askConfirm],
   );
 
   const openBinView = useCallback(() => {
@@ -810,11 +1036,118 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const permanentlyDeleteCompanyAction = useCallback(
     async (id: string) => {
       const c = binCompanies.find((x) => x.id === id);
-      if (c && !window.confirm(t.errors.confirmPermanentlyDeleteCompany(c.name))) return;
+      if (c && !(await askConfirm(t.errors.confirmPermanentlyDeleteCompany(c.name)))) return;
       const ok = await runMutation(() => api.permanentlyDeleteCompanyApi(id));
       if (ok !== null) setBinCompanies((list) => list.filter((x) => x.id !== id));
     },
-    [binCompanies, runMutation, t],
+    [binCompanies, runMutation, t, askConfirm],
+  );
+
+  // ---- projects ----
+  const openProjectDrawer = useCallback((id: string) => {
+    setSelectedProjectId(id);
+    setEditingProject(false);
+    setProjectDraftState(null);
+  }, []);
+
+  const closeProjectDrawer = useCallback(() => {
+    setSelectedProjectId(null);
+    setEditingProject(false);
+    setProjectDraftState(null);
+  }, []);
+
+  // Same "create blank, then edit inline" UX as addCompany() — the row already exists with
+  // fixed defaults (see insertProject in supabase/projects.ts) before the user names it.
+  const addProject = useCallback(async () => {
+    const created = await runMutation(() => api.createProject());
+    if (!created) return;
+    setProjects((list) => [created, ...list]);
+    setSelectedProjectId(created.id);
+    setEditingProject(true);
+    setProjectDraftState({
+      name: created.name,
+      description: created.description,
+      status: created.status,
+      start_date: created.start_date,
+      end_date: created.end_date,
+    });
+  }, [runMutation]);
+
+  const deleteProjectAction = useCallback(
+    async (id: string) => {
+      const p = projects.find((x) => x.id === id);
+      if (p && !(await askConfirm(t.errors.confirmDeleteProject(p.name)))) return;
+      const ok = await runMutation(() => api.deleteProjectApi(id));
+      if (ok !== null) {
+        setProjects((list) => list.filter((x) => x.id !== id));
+        setProjectLinks((list) => list.filter((l) => l.project_id !== id));
+        if (selectedProjectId === id) closeProjectDrawer();
+      }
+    },
+    [projects, runMutation, selectedProjectId, closeProjectDrawer, t, askConfirm],
+  );
+
+  const startEditProject = useCallback(() => {
+    if (!selectedProject) return;
+    setEditingProject(true);
+    setProjectDraftState({
+      name: selectedProject.name,
+      description: selectedProject.description,
+      status: selectedProject.status,
+      start_date: selectedProject.start_date,
+      end_date: selectedProject.end_date,
+    });
+  }, [selectedProject]);
+
+  const cancelEditProject = useCallback(() => {
+    setEditingProject(false);
+    setProjectDraftState(null);
+  }, []);
+
+  const setProjectField = useCallback(<K extends keyof NewProjectInput>(key: K, value: NewProjectInput[K]) => {
+    setProjectDraftState((d) => (d ? { ...d, [key]: value } : d));
+  }, []);
+
+  const saveProjectDetails = useCallback(async () => {
+    if (!selectedProjectId || !projectDraft) return;
+    const updated = await runMutation(() => api.updateProjectApi(selectedProjectId, projectDraft));
+    if (updated) {
+      setProjects((list) => list.map((p) => (p.id === updated.id ? updated : p)));
+      setEditingProject(false);
+      setProjectDraftState(null);
+    }
+  }, [selectedProjectId, projectDraft, runMutation]);
+
+  const addCompanyToProjectAction = useCallback(
+    async (projectId: string, companyId: string) => {
+      const link = await runMutation(() => api.addCompanyToProjectApi(projectId, companyId));
+      if (link) setProjectLinks((list) => (list.some((l) => l.project_id === projectId && l.company_id === companyId) ? list : [...list, link]));
+    },
+    [runMutation],
+  );
+
+  const removeCompanyFromProjectAction = useCallback(
+    async (projectId: string, companyId: string) => {
+      const ok = await runMutation(() => api.removeCompanyFromProjectApi(projectId, companyId));
+      if (ok !== null) setProjectLinks((list) => list.filter((l) => !(l.project_id === projectId && l.company_id === companyId)));
+    },
+    [runMutation],
+  );
+
+  // Thin wrappers for the company drawer's Projects chip section — operate on whichever
+  // company is currently open (selectedId), mirroring addTag/removeTag's shape.
+  const addCompanyToSelectedProject = useCallback(async () => {
+    if (!selectedId || !draft.projectChoice) return;
+    await addCompanyToProjectAction(draft.projectChoice, selectedId);
+    setDraftState((d) => ({ ...d, projectChoice: '' }));
+  }, [selectedId, draft.projectChoice, addCompanyToProjectAction]);
+
+  const removeCompanyFromSelectedProject = useCallback(
+    async (projectId: string) => {
+      if (!selectedId) return;
+      await removeCompanyFromProjectAction(projectId, selectedId);
+    },
+    [selectedId, removeCompanyFromProjectAction],
   );
 
   const dismissDuplicate = useCallback(
@@ -858,9 +1191,33 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     openBinView,
     restoreCompanyAction,
     permanentlyDeleteCompanyAction,
+    projects,
+    projectViews,
+    projectOptions,
+    companyIdsByProject,
+    selectedProjectIds,
+    selectedProjectId,
+    selectedProject,
+    openProjectDrawer,
+    closeProjectDrawer,
+    addProject,
+    deleteProjectAction,
+    editingProject,
+    projectDraft,
+    startEditProject,
+    cancelEditProject,
+    setProjectField,
+    saveProjectDetails,
+    addCompanyToProjectAction,
+    removeCompanyFromProjectAction,
+    addCompanyToSelectedProject,
+    removeCompanyFromSelectedProject,
     companies,
     filtered,
     sorted,
+    showHubsOnMap,
+    setShowHubsOnMap,
+    mapFiltered,
     filters,
     setFilters,
     clearFilters,
@@ -873,6 +1230,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     trailerTypeOptions,
     allCapabilities,
     allTrailerTypes,
+    allCountriesServed,
     duplicateCount,
     route,
     setRouteField,
@@ -896,9 +1254,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     removeTrailerType,
     addCompanyType,
     removeCompanyType,
+    addCountryServed,
+    removeCountryServed,
     addActivity,
     addRateQuote,
     deleteRateQuoteAction,
+    editingRateId,
+    startEditRateQuote,
+    cancelEditRateQuote,
+    saveRateQuoteEdit,
     editingDetails,
     editDraft,
     editError,
@@ -926,9 +1290,33 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       openBinView,
       restoreCompanyAction,
       permanentlyDeleteCompanyAction,
+      projects,
+      projectViews,
+      projectOptions,
+      companyIdsByProject,
+      selectedProjectIds,
+      selectedProjectId,
+      selectedProject,
+      openProjectDrawer,
+      closeProjectDrawer,
+      addProject,
+      deleteProjectAction,
+      editingProject,
+      projectDraft,
+      startEditProject,
+      cancelEditProject,
+      setProjectField,
+      saveProjectDetails,
+      addCompanyToProjectAction,
+      removeCompanyFromProjectAction,
+      addCompanyToSelectedProject,
+      removeCompanyFromSelectedProject,
       companies,
       filtered,
       sorted,
+      showHubsOnMap,
+      setShowHubsOnMap,
+      mapFiltered,
       filters,
       setFilters,
       clearFilters,
@@ -941,6 +1329,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       trailerTypeOptions,
       allCapabilities,
       allTrailerTypes,
+      allCountriesServed,
       duplicateCount,
       route,
       setRouteField,
@@ -964,9 +1353,15 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       removeTrailerType,
       addCompanyType,
       removeCompanyType,
+      addCountryServed,
+      removeCountryServed,
       addActivity,
       addRateQuote,
       deleteRateQuoteAction,
+      editingRateId,
+      startEditRateQuote,
+      cancelEditRateQuote,
+      saveRateQuoteEdit,
       editingDetails,
       editDraft,
       editError,
@@ -985,7 +1380,40 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <CrmContext.Provider value={value}>{children}</CrmContext.Provider>;
+  return (
+    <CrmContext.Provider value={value}>
+      {children}
+      {confirmState && (
+        <>
+          <div onClick={() => respondConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 3000 }} />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(400px, calc(100vw - 32px))',
+              background: '#fff',
+              borderRadius: 10,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+              zIndex: 3001,
+              padding: 20,
+            }}
+          >
+            <div style={{ fontSize: 14, color: '#0f172a', marginBottom: 16, lineHeight: 1.5 }}>{confirmState.message}</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => respondConfirm(false)} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
+                {t.errors.confirmCancel}
+              </button>
+              <button onClick={() => respondConfirm(true)} style={primaryButtonStyle}>
+                {t.errors.confirmOk}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </CrmContext.Provider>
+  );
 }
 
 export function useCrm() {

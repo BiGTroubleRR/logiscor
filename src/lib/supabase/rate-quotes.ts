@@ -19,6 +19,7 @@ export type NewRateQuoteInput = {
   rate: number | null;
   dem_ft: string;
   notes: string;
+  expires_at: string | null;
 };
 
 export async function listRateQuotes(companyId: string): Promise<RateQuote[]> {
@@ -39,6 +40,13 @@ export async function addRateQuote(companyId: string, input: NewRateQuoteInput):
     .insert({ company_id: companyId, ...input })
     .select('*')
     .single();
+  if (error) throw error;
+  return data as unknown as RateQuote;
+}
+
+export async function updateRateQuote(id: string, input: NewRateQuoteInput): Promise<RateQuote> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from('rate_quotes').update(input).eq('id', id).select('*').single();
   if (error) throw error;
   return data as unknown as RateQuote;
 }

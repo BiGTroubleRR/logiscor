@@ -8,6 +8,7 @@ import FilterBar from './FilterBar';
 import CompanyTable from './CompanyTable';
 import MapView from './MapView';
 import BinView from './BinView';
+import ProjectsView from './ProjectsView';
 import CompanyDrawer from './CompanyDrawer';
 
 function CrmShell() {
@@ -17,8 +18,8 @@ function CrmShell() {
   return (
     <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#0f172a' }}>
       <Header />
-      {view !== 'bin' && <RouteSearchBar />}
-      {view !== 'bin' && <FilterBar />}
+      {view !== 'bin' && view !== 'projects' && <RouteSearchBar />}
+      {view !== 'bin' && view !== 'projects' && <FilterBar />}
 
       {mutationError && (
         <div style={{ background: '#fef2f2', color: '#991b1b', fontSize: 12, padding: '8px 20px', borderBottom: '1px solid #fecaca' }}>
@@ -34,6 +35,8 @@ function CrmShell() {
         <CompanyTable />
       ) : view === 'bin' ? (
         <BinView />
+      ) : view === 'projects' ? (
+        <ProjectsView />
       ) : (
         <MapView />
       )}

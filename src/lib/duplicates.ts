@@ -24,26 +24,17 @@ export function normalizeDomain(website: string | null | undefined): string {
     .split('?')[0];
 }
 
-const HUB_SUFFIX = /\s+HUB\s+(\d+)$/i;
-
-// Strips a trailing " HUB N" suffix so repeated duplication (HUB 2, HUB 3, ...) keeps
-// numbering off the same base name instead of stacking suffixes.
-function baseCompanyName(name: string): string {
-  return name.replace(HUB_SUFFIX, '').trim();
+// A hub duplicate keeps the original's name (see duplicateCompany in supabase/companies.ts) —
+// this note is what actually records the relationship, appended to the copy's description.
+export function hubNoteText(originalName: string, hubNumber: number): string {
+  return `Hub duplicate ${hubNumber} of "${originalName}".`;
 }
 
-// The original company is implicitly "HUB 1" — the first duplicate becomes "HUB 2", the
-// next "HUB 3", and so on, based on the highest existing HUB number for that base name.
-export function nextHubName(name: string, allNames: string[]): string {
-  const base = baseCompanyName(name);
-  let maxHub = 1;
-  allNames.forEach((n) => {
-    if (baseCompanyName(n) !== base) return;
-    const match = n.match(HUB_SUFFIX);
-    const num = match ? parseInt(match[1], 10) : 1;
-    if (num > maxHub) maxHub = num;
-  });
-  return `${base} HUB ${maxHub + 1}`;
+// Appends as a new paragraph rather than replacing — description is free text staff have
+// already written, not a template slot.
+export function appendHubNote(description: string, note: string): string {
+  const trimmed = description.trim();
+  return trimmed ? `${trimmed}\n\n${note}` : note;
 }
 
 export type DuplicateFlags = {

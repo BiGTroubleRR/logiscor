@@ -143,7 +143,10 @@ export function validateImportRow(raw: Record<string, unknown>, rowNumber: numbe
     website: String(raw.website ?? '').trim(),
     phone: String(raw.phone ?? '').trim(),
     email: String(raw.email ?? '').trim(),
-    description: String(raw.description ?? '').trim(),
+    // "Remarks" is accepted as an alias for externally-authored sheets that don't use the
+    // app's own canonical "description" column header (see IMPORT_HEADERS above, which still
+    // only ever offers "description" in the generated template).
+    description: String(raw.description ?? raw.remarks ?? '').trim(),
     capability_tags: splitList(raw.capability_tags),
     trailer_types: splitList(raw.trailer_types),
     pending_review: parseBoolean(raw.pending_review, true),

@@ -76,6 +76,12 @@ export default function Header() {
         >
           {t.bin.tabLabel}
         </button>
+        <button
+          onClick={() => setView('projects')}
+          style={{ ...tabBase, background: view === 'projects' ? '#0d9488' : 'transparent', color: view === 'projects' ? '#fff' : '#94a3b8' }}
+        >
+          {t.projects.tabLabel}
+        </button>
       </div>
 
       <div style={{ flex: 1 }} />

@@ -1,7 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
-import { listRateQuotes, addRateQuote, deleteRateQuote } from '@/lib/supabase/rate-quotes';
+import { listRateQuotes, addRateQuote, updateRateQuote, deleteRateQuote } from '@/lib/supabase/rate-quotes';
+
+type RateQuoteBody = {
+  companyId?: string;
+  origin?: string;
+  destination?: string;
+  transportMode?: string;
+  loadType?: string;
+  containerType?: string;
+  vehicleType?: string;
+  capacity?: string;
+  cargoType?: string;
+  hazmatClass?: string;
+  serviceType?: string;
+  deliveryScope?: string;
+  rate?: number | null;
+  demFt?: string;
+  notes?: string;
+  expiresAt?: string | null;
+};
 
 export async function GET(request: Request) {
   const identity = await getIdentity();
@@ -25,25 +44,7 @@ export async function POST(request: Request) {
   const identity = await getIdentity();
   if (!identity) return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
 
-  const body = (await request.json().catch(() => null)) as
-    | {
-        companyId?: string;
-        origin?: string;
-        destination?: string;
-        transportMode?: string;
-        loadType?: string;
-        containerType?: string;
-        vehicleType?: string;
-        capacity?: string;
-        cargoType?: string;
-        hazmatClass?: string;
-        serviceType?: string;
-        deliveryScope?: string;
-        rate?: number | null;
-        demFt?: string;
-        notes?: string;
-      }
-    | null;
+  const body = (await request.json().catch(() => null)) as RateQuoteBody | null;
   if (!body?.companyId || !body.origin?.trim() || !body.destination?.trim()) {
     return NextResponse.json({ error: 'Expected "companyId", non-empty "origin", and non-empty "destination".' }, { status: 400 });
   }
@@ -64,6 +65,43 @@ export async function POST(request: Request) {
       rate: typeof body.rate === 'number' && Number.isFinite(body.rate) ? body.rate : null,
       dem_ft: body.demFt?.trim() ?? '',
       notes: body.notes?.trim() ?? '',
+      expires_at: body.expiresAt?.trim() || null,
+    });
+    return NextResponse.json({ quote });
+  } catch (e) {
+    if (e instanceof MissingServiceRoleKeyError) {
+      return NextResponse.json({ error: e.message, code: 'missing_service_role_key' }, { status: 503 });
+    }
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Unexpected error.' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  const identity = await getIdentity();
+  if (!identity) return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
+
+  const body = (await request.json().catch(() => null)) as (RateQuoteBody & { id?: string }) | null;
+  if (!body?.id || !body.origin?.trim() || !body.destination?.trim()) {
+    return NextResponse.json({ error: 'Expected "id", non-empty "origin", and non-empty "destination".' }, { status: 400 });
+  }
+
+  try {
+    const quote = await updateRateQuote(body.id, {
+      origin: body.origin.trim(),
+      destination: body.destination.trim(),
+      transport_mode: body.transportMode?.trim() ?? '',
+      load_type: body.loadType?.trim() ?? '',
+      container_type: body.containerType?.trim() ?? '',
+      vehicle_type: body.vehicleType?.trim() ?? '',
+      capacity: body.capacity?.trim() ?? '',
+      cargo_type: body.cargoType?.trim() ?? '',
+      hazmat_class: body.hazmatClass?.trim() ?? '',
+      service_type: body.serviceType?.trim() ?? '',
+      delivery_scope: body.deliveryScope?.trim() ?? '',
+      rate: typeof body.rate === 'number' && Number.isFinite(body.rate) ? body.rate : null,
+      dem_ft: body.demFt?.trim() ?? '',
+      notes: body.notes?.trim() ?? '',
+      expires_at: body.expiresAt?.trim() || null,
     });
     return NextResponse.json({ quote });
   } catch (e) {
