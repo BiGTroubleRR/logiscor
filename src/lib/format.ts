@@ -69,9 +69,18 @@ export function flagEmoji(code: string): string {
   return String.fromCodePoint(...Array.from(upper).map((c) => 127397 + c.charCodeAt(0)));
 }
 
+// Overrides for codes where Intl.DisplayNames' current CLDR output diverges from the
+// conventional English name already used elsewhere in this app's data/translations (e.g. the
+// Czech labels in lib/i18n/option-labels.ts) — kept short since most codes need no override.
+const COUNTRY_NAME_OVERRIDES: Record<string, string> = {
+  TR: 'Turkey',
+};
+
 export function countryNameFromCode(code: string): string {
+  const upper = code.trim().toUpperCase();
+  if (COUNTRY_NAME_OVERRIDES[upper]) return COUNTRY_NAME_OVERRIDES[upper];
   try {
-    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.trim().toUpperCase()) ?? code;
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(upper) ?? code;
   } catch {
     return code;
   }

@@ -156,6 +156,7 @@ export const cs: Dict = {
     name: 'Název',
     type: 'Typ',
     country: 'Země',
+    selectCountryPlaceholder: 'Vyberte zemi...',
     city: 'Město',
     latitude: 'Zeměpisná šířka',
     longitude: 'Zeměpisná délka',

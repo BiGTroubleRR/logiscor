@@ -9,6 +9,7 @@ import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
 import { extractLaneCodes } from '@/lib/lane-codes';
 import FlagIcon from './FlagIcon';
+import CountryLabel from './CountryLabel';
 import type { CompanyView } from '@/types/company';
 import type { Dict } from '@/lib/i18n/en';
 
@@ -81,6 +82,7 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
       <td style={td}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 600, color: '#0f172a' }}>{c.name}</div>
+          <CountryLabel country={c.country} compact />
           {c.isDuplicate && (
             <>
               <span
@@ -137,7 +139,6 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
           ))}
         </div>
       </td>
-      <td style={{ ...td, color: '#334155' }}>{translateOption(c.country, locale)}</td>
       <td style={{ ...td, color: '#334155' }}>
         {c.region || t.table.dash}
         <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.city}</div>
@@ -255,7 +256,6 @@ export default function CompanyTable() {
             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <SortHeader label={t.table.colCompany} sortKey="name" />
               <SortHeader label={t.table.colType} sortKey="type" />
-              <SortHeader label={t.table.colCountry} sortKey="country" />
               <SortHeader label={t.table.colRegionCity} sortKey="region" />
               <th style={thStyleNoSort}>{t.table.colCapabilities}</th>
               <SortHeader label={t.table.colStrength} sortKey="strength_score" />

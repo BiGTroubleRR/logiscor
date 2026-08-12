@@ -5,8 +5,10 @@ import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
 import RfqEmailModal from './RfqEmailModal';
-import { activityTypeColor, countryNameFromCode, formatDate, formatDateTime, formatTag, normalizeUrl, tierColor } from '@/lib/format';
+import { activityTypeColor, countryNameFromCode, flagEmoji, formatDate, formatDateTime, formatTag, normalizeUrl, tierColor } from '@/lib/format';
 import FlagIcon from './FlagIcon';
+import CountryLabel from './CountryLabel';
+import { COUNTRY_OPTIONS, NON_COUNTRY_OPTIONS } from '@/lib/countries';
 import { translateOption } from '@/lib/i18n/option-labels';
 import type { ActivityType, CompanyType } from '@/types/company';
 import {
@@ -135,8 +137,11 @@ export default function CompanyProfileContent() {
       <div style={{ flex: '0 0 auto', padding: '18px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
           <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{selected.name}</div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-            {(selected.types.length ? selected.types : [selected.type]).map((tp) => trTag(tp)).join(' / ')} · {selected.city}, {translateOption(selected.country, locale)}
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <span>
+              {(selected.types.length ? selected.types : [selected.type]).map((tp) => trTag(tp)).join(' / ')} · {selected.city},
+            </span>
+            <CountryLabel country={selected.country} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
@@ -350,11 +355,6 @@ export default function CompanyProfileContent() {
                 <Field label={t.drawer.phone} value={selected.phone || t.drawer.dash} />
                 <Field label={t.drawer.email} value={selected.email || t.drawer.dash} span2 />
               </div>
-              {selected.pending_review && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <span style={{ background: '#fef2f2', color: '#b91c1c', fontSize: 11, padding: '3px 8px', borderRadius: 999, fontWeight: 600 }}>{t.drawer.pendingReview}</span>
-                </div>
-              )}
               <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginTop: 12 }}>{selected.description}</p>
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
                 {t.drawer.sourcePrefix}
@@ -382,7 +382,22 @@ export default function CompanyProfileContent() {
                       <option value="warehouse">{t.companyTypes.warehouse}</option>
                     </select>
                   </label>
-                  <LabeledInput label={t.drawer.country} value={editDraft.country} onChange={(v) => setEditField('country', v)} />
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.country}</span>
+                    <select value={editDraft.country} onChange={(e) => setEditField('country', e.target.value)} style={editInputStyle}>
+                      <option value="">{t.drawer.selectCountryPlaceholder}</option>
+                      {COUNTRY_OPTIONS.map((o) => (
+                        <option key={o.code} value={o.name}>
+                          {flagEmoji(o.code)} {o.name}
+                        </option>
+                      ))}
+                      {NON_COUNTRY_OPTIONS.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <LabeledInput label={t.drawer.region} value={editDraft.region} onChange={(v) => setEditField('region', v)} />
                   <LabeledInput label={t.drawer.city} value={editDraft.city} onChange={(v) => setEditField('city', v)} />
                   <LabeledInput label={t.drawer.latitude} value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { lightSelectStyle, linkButtonStyle, outlineButtonStyle, primaryButtonStyle } from '@/lib/styles';
-import { formatTag } from '@/lib/format';
+import { flagEmoji, formatTag } from '@/lib/format';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { companiesToCsv, downloadCsv } from '@/lib/csv';
 import { downloadCompaniesXlsx } from '@/lib/xlsx-export';
@@ -67,6 +67,7 @@ export default function FilterBar() {
         <option value="all">{t.filterBar.allCountries}</option>
         {countryOptions.map((o) => (
           <option key={o.value} value={o.value}>
+            {o.value.length === 2 ? `${flagEmoji(o.value)} ` : ''}
             {translateOption(o.label, locale)}
           </option>
         ))}

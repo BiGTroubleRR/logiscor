@@ -145,6 +145,7 @@ export const en = {
     name: 'Name',
     type: 'Type',
     country: 'Country',
+    selectCountryPlaceholder: 'Select country...',
     city: 'City',
     latitude: 'Latitude',
     longitude: 'Longitude',

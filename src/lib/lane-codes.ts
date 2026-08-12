@@ -5,8 +5,8 @@
 
 // Full ISO 3166-1 alpha-2 set (not just Europe) — a legitimate lane code anywhere in the
 // world shouldn't get silently dropped just because this app's own data currently skews
-// European.
-const ISO_3166_1_ALPHA_2 = new Set([
+// European. Also the source list for lib/countries.ts's canonical country dropdown.
+export const ISO_3166_1_ALPHA_2_CODES = [
   'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
   'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS',
   'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN',
@@ -23,7 +23,9 @@ const ISO_3166_1_ALPHA_2 = new Set([
   'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO',
   'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI',
   'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW',
-]);
+];
+
+const ISO_3166_1_ALPHA_2 = new Set(ISO_3166_1_ALPHA_2_CODES);
 
 // Matches 2+ consecutive uppercase 2-letter tokens joined by hyphens/commas (with optional
 // spaces around the separator), e.g. "CZ-AT-IT-SI" or "DE, AT, HU".

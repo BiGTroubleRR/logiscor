@@ -6,6 +6,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { formatDate, formatTag, typeColor } from '@/lib/format';
 import { translateOption } from '@/lib/i18n/option-labels';
 import type { Company } from '@/types/company';
+import CountryLabel from './CountryLabel';
 
 const td: CSSProperties = { padding: '12px 14px' };
 const thStyle: CSSProperties = {
@@ -48,7 +49,9 @@ function Row({ c }: { c: Company }) {
           ))}
         </div>
       </td>
-      <td style={{ ...td, color: '#334155' }}>{translateOption(c.country, locale)}</td>
+      <td style={{ ...td, color: '#334155' }}>
+        <CountryLabel country={c.country} />
+      </td>
       <td style={{ ...td, color: '#64748b', fontSize: 12 }}>{t.bin.deletedOn(formatDate(c.deleted_at, locale === 'cs' ? 'cs-CZ' : 'en-US'))}</td>
       <td style={{ ...td, textAlign: 'right' }}>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

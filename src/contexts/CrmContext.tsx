@@ -11,6 +11,7 @@ import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
 import { PRESET_COUNTRY_CODES } from '@/lib/countries-served';
+import { canonicalCountryName, resolveCountryCode } from '@/lib/countries';
 import { primaryButtonStyle } from '@/lib/styles';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
@@ -356,10 +357,22 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     () => Array.from(new Set(companies.flatMap((c) => c.types))).sort().map((t) => ({ value: t, label: t })),
     [companies],
   );
-  const countryOptions = useMemo(
-    () => Array.from(new Set(companies.map((c) => c.country))).filter(Boolean).sort().map((v) => ({ value: v, label: v })),
-    [companies],
-  );
+  // Grouped by canonical ISO code (not the raw stored string) so legacy variants of the same
+  // country — "Czech Republic", "Czechia", bare "CZ" from earlier imports — collapse into one
+  // filter entry instead of three. Values with no resolvable code (e.g. "Unknown") keep their
+  // own entry, keyed by the raw string. See lib/countries.ts.
+  const countryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    companies.forEach((c) => {
+      if (!c.country) return;
+      const code = resolveCountryCode(c.country);
+      const key = code ?? c.country;
+      if (!map.has(key)) map.set(key, code ? canonicalCountryName(c.country) : c.country);
+    });
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [companies]);
   const regionOptions = useMemo(
     () => Array.from(new Set(companies.map((c) => c.region))).filter(Boolean).sort().map((v) => ({ value: v, label: v })),
     [companies],
@@ -403,7 +416,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     return companies.filter(
       (c) =>
         (filters.type === 'all' || c.types.includes(filters.type as CompanyType)) &&
-        (filters.country === 'all' || c.country === filters.country) &&
+        (filters.country === 'all' || (resolveCountryCode(c.country) ?? c.country) === filters.country) &&
         (filters.region === 'all' || c.region === filters.region) &&
         (filters.capability === 'all' || c.capability_tags.includes(filters.capability)) &&
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
@@ -878,7 +891,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setEditDraftState({
       name: selected.name,
       type: selected.type,
-      country: selected.country,
+      country: canonicalCountryName(selected.country),
       region: selected.region,
       city: selected.city,
       lat: String(selected.lat),
