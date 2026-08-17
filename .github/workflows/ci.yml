@@ -20,6 +20,12 @@ jobs:
 
       - run: npm run lint
 
+      # `LayoutProps`/`PageProps` (see src/app/layout.tsx) are ambient types Next.js generates
+      # into .next/types/ — normally produced by `next dev`/`next build`, which a fresh CI
+      # checkout has never run. Without this, tsc fails with "Cannot find name 'LayoutProps'"
+      # even though the code is fine — reproduced locally by deleting .next before typechecking.
+      - run: npx next typegen
+
       - run: npx tsc --noEmit
 
       - run: npm test
