@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, type CSSProperties } from 'react';
+import { memo, useMemo, useState, type CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { findSnippet, formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
@@ -234,6 +234,7 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
             deleteCompanyAction(c.id);
           }}
           title={t.table.deleteCompany}
+          aria-label={`${t.table.deleteCompany}: ${c.name}`}
           style={{ border: 'none', background: 'none', color: '#cbd5e1', fontSize: 14, cursor: 'pointer', padding: '2px 4px' }}
         >
           🗑
@@ -243,10 +244,62 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
   );
 });
 
+// Paginates instead of virtualizing — a plain <table> can't absolutely-position rows without
+// breaking column alignment, and at the dataset sizes this app actually deals with, a lighter
+// page-at-a-time render is enough to keep the DOM small without that rewrite risk.
+const PAGE_SIZE = 50;
+
+function PaginationBar({ page, totalPages, total, onPageChange }: { page: number; totalPages: number; total: number; onPageChange: (p: number) => void }) {
+  const { t } = useLocale();
+  if (total === 0) return null;
+  const start = (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, total);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid #e2e8f0', fontSize: 12, color: '#64748b' }}>
+      <div>{t.table.paginationShowing(start, end, total)}</div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <button
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          style={{ border: '1px solid #cbd5e1', background: '#fff', color: page <= 1 ? '#cbd5e1' : '#334155', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}
+        >
+          {t.table.paginationPrev}
+        </button>
+        <span>{t.table.paginationPageOf(page, totalPages)}</span>
+        <button
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          style={{ border: '1px solid #cbd5e1', background: '#fff', color: page >= totalPages ? '#cbd5e1' : '#334155', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: page >= totalPages ? 'not-allowed' : 'pointer' }}
+        >
+          {t.table.paginationNext}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CompanyTable() {
-  const { sorted, route } = useCrm();
+  const { sorted, route, filters, sort } = useCrm();
   const { t } = useLocale();
   const distanceLabel = route.active ? t.table.colDistanceRoute : t.table.colDistance;
+
+  const [page, setPage] = useState(1);
+  // Resets to page 1 whenever the filter/sort selection changes — otherwise a narrower result
+  // set can leave the view stuck on a now-out-of-range page. Adjusted during render (React's
+  // documented pattern for "reset state when a prop changes") rather than in an effect, since
+  // setState-in-an-effect here would just trigger an extra cascading render for no benefit.
+  const [prevFilters, setPrevFilters] = useState(filters);
+  const [prevSort, setPrevSort] = useState(sort);
+  if (filters !== prevFilters || sort !== prevSort) {
+    setPrevFilters(filters);
+    setPrevSort(sort);
+    setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, totalPages);
+  const pageRows = useMemo(() => sorted.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE), [sorted, clampedPage]);
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
@@ -268,13 +321,15 @@ export default function CompanyTable() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((c) => (
+            {pageRows.map((c) => (
               <Row key={c.id} c={c} />
             ))}
           </tbody>
         </table>
-        {sorted.length === 0 && (
+        {sorted.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{t.table.noMatches}</div>
+        ) : (
+          <PaginationBar page={clampedPage} totalPages={totalPages} total={sorted.length} onPageChange={setPage} />
         )}
       </div>
     </div>

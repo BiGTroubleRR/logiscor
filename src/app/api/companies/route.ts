@@ -7,6 +7,8 @@ import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
 import { listCompanies, insertCompany, updateCompanyDetails, deleteCompany } from '@/lib/supabase/companies';
 import type { CompanyType } from '@/types/company';
 
+const VALID_TYPES: CompanyType[] = ['carrier', 'manufacturer', 'port', 'warehouse'];
+
 function errorResponse(e: unknown) {
   if (e instanceof MissingServiceRoleKeyError) {
     return NextResponse.json({ error: e.message, code: 'missing_service_role_key' }, { status: 503 });
@@ -75,11 +77,14 @@ export async function PATCH(request: Request) {
   if (!body?.id || !body.patch) return NextResponse.json({ error: 'Expected "id" and "patch".' }, { status: 400 });
 
   if (!body.patch.name?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
-  if (body.patch.lat != null && Number.isNaN(body.patch.lat)) {
-    return NextResponse.json({ error: 'Latitude and longitude must be numbers.' }, { status: 400 });
+  if (body.patch.type != null && !VALID_TYPES.includes(body.patch.type)) {
+    return NextResponse.json({ error: `Invalid type. Must be one of ${VALID_TYPES.join(', ')}.` }, { status: 400 });
   }
-  if (body.patch.lng != null && Number.isNaN(body.patch.lng)) {
-    return NextResponse.json({ error: 'Latitude and longitude must be numbers.' }, { status: 400 });
+  if (body.patch.lat != null && (typeof body.patch.lat !== 'number' || Number.isNaN(body.patch.lat) || body.patch.lat < -90 || body.patch.lat > 90)) {
+    return NextResponse.json({ error: 'Latitude must be a number between -90 and 90.' }, { status: 400 });
+  }
+  if (body.patch.lng != null && (typeof body.patch.lng !== 'number' || Number.isNaN(body.patch.lng) || body.patch.lng < -180 || body.patch.lng > 180)) {
+    return NextResponse.json({ error: 'Longitude must be a number between -180 and 180.' }, { status: 400 });
   }
 
   try {

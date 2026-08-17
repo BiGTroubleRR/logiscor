@@ -99,6 +99,10 @@ export const en = {
     kmFromOrigin: (km: number, place: string) => `${km} km from "${place}"`,
     kmFromDest: (km: number, place: string) => `${km} km from "${place}"`,
     noMatches: 'No carriers match these filters.',
+    paginationShowing: (start: number, end: number, total: number) => `Showing ${start}–${end} of ${total}`,
+    paginationPrev: 'Previous',
+    paginationNext: 'Next',
+    paginationPageOf: (page: number, totalPages: number) => `Page ${page} of ${totalPages}`,
   },
 
   drawer: {
@@ -157,6 +161,7 @@ export const en = {
     noneOnFile: 'None on file.',
     addTrailerTypePlaceholder: 'Add trailer type...',
     add: 'Add',
+    remove: 'Remove',
 
     capabilityTags: 'Capability Tags',
     addCapabilityPlaceholder: 'Add capability...',

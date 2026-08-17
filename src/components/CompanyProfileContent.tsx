@@ -150,6 +150,7 @@ export default function CompanyProfileContent() {
             target="_blank"
             rel="noopener noreferrer"
             title={t.drawer.openFullProfile}
+            aria-label={t.drawer.openFullProfile}
             style={{ border: 'none', background: '#f1f5f9', color: '#334155', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
           >
             ↗
@@ -157,6 +158,7 @@ export default function CompanyProfileContent() {
           <button
             onClick={() => duplicateCompanyAction(selected.id)}
             title={t.drawer.addHub}
+            aria-label={t.drawer.addHub}
             style={{ border: 'none', background: '#f1f5f9', color: '#334155', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
           >
             ⧉
@@ -165,6 +167,7 @@ export default function CompanyProfileContent() {
             onClick={() => setShowRfqModal(true)}
             disabled={!selected.email}
             title={selected.email ? t.rfq.sendRfq : t.rfq.noEmailOnFile}
+            aria-label={selected.email ? t.rfq.sendRfq : t.rfq.noEmailOnFile}
             style={{
               border: 'none',
               background: selected.email ? '#f1f5f9' : '#f8fafc',
@@ -181,11 +184,12 @@ export default function CompanyProfileContent() {
           <button
             onClick={() => deleteCompanyAction(selected.id)}
             title={t.drawer.deleteCompany}
+            aria-label={t.drawer.deleteCompany}
             style={{ border: 'none', background: '#fef2f2', color: '#dc2626', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
           >
             🗑
           </button>
-          <button onClick={closeDrawer} title={t.drawer.close} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>
+          <button onClick={closeDrawer} title={t.drawer.close} aria-label={t.drawer.close} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>
             ✕
           </button>
         </div>
@@ -261,7 +265,12 @@ export default function CompanyProfileContent() {
               <span key={tp} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {trTag(tp)}
                 {selected.types.length > 1 && (
-                  <button onClick={() => removeCompanyType(tp)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                  <button
+                    onClick={() => removeCompanyType(tp)}
+                    title={`${t.drawer.remove} ${trTag(tp)}`}
+                    aria-label={`${t.drawer.remove} ${trTag(tp)}`}
+                    style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                  >
                     ✕
                   </button>
                 )}
@@ -300,7 +309,12 @@ export default function CompanyProfileContent() {
               .map((p) => (
                 <span key={p.id} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {p.name}
-                  <button onClick={() => removeCompanyFromSelectedProject(p.id)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                  <button
+                    onClick={() => removeCompanyFromSelectedProject(p.id)}
+                    title={`${t.drawer.remove} ${p.name}`}
+                    aria-label={`${t.drawer.remove} ${p.name}`}
+                    style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                  >
                     ✕
                   </button>
                 </span>
@@ -439,7 +453,12 @@ export default function CompanyProfileContent() {
             {selected.trailer_types.map((type) => (
               <span key={type} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {translateOption(type, locale)}
-                <button onClick={() => removeTrailerType(type)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                <button
+                  onClick={() => removeTrailerType(type)}
+                  title={`${t.drawer.remove} ${translateOption(type, locale)}`}
+                  aria-label={`${t.drawer.remove} ${translateOption(type, locale)}`}
+                  style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                >
                   ✕
                 </button>
               </span>
@@ -472,7 +491,12 @@ export default function CompanyProfileContent() {
             {selected.capability_tags.map((tag) => (
               <span key={tag} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {trTag(tag)}
-                <button onClick={() => removeTag(tag)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                <button
+                  onClick={() => removeTag(tag)}
+                  title={`${t.drawer.remove} ${trTag(tag)}`}
+                  aria-label={`${t.drawer.remove} ${trTag(tag)}`}
+                  style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                >
                   ✕
                 </button>
               </span>
@@ -502,7 +526,12 @@ export default function CompanyProfileContent() {
               <span key={code} title={countryNameFromCode(code)} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FlagIcon code={code} />
                 {code}
-                <button onClick={() => removeCountryServed(code)} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>
+                <button
+                  onClick={() => removeCountryServed(code)}
+                  title={`${t.drawer.remove} ${code}`}
+                  aria-label={`${t.drawer.remove} ${code}`}
+                  style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                >
                   ✕
                 </button>
               </span>
@@ -878,6 +907,7 @@ export default function CompanyProfileContent() {
                         <button
                           onClick={() => (isEditing ? cancelEditRateQuote() : startEditRateQuote(quote))}
                           title={isEditing ? t.drawer.cancelEdit : t.drawer.editRate}
+                          aria-label={isEditing ? t.drawer.cancelEdit : t.drawer.editRate}
                           style={{ border: 'none', background: 'none', color: isEditing ? '#0d9488' : '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
                         >
                           ✎
@@ -885,6 +915,7 @@ export default function CompanyProfileContent() {
                         <button
                           onClick={() => deleteRateQuoteAction(quote.id)}
                           title={t.drawer.deleteRate}
+                          aria-label={t.drawer.deleteRate}
                           style={{ border: 'none', background: 'none', color: '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
                         >
                           🗑

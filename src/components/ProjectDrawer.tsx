@@ -60,11 +60,12 @@ export default function ProjectDrawer() {
             <button
               onClick={() => deleteProjectAction(selectedProject.id)}
               title={t.projects.deleteProject}
+              aria-label={t.projects.deleteProject}
               style={{ border: 'none', background: '#fef2f2', color: '#dc2626', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
             >
               🗑
             </button>
-            <button onClick={closeProjectDrawer} title={t.drawer.close} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>
+            <button onClick={closeProjectDrawer} title={t.drawer.close} aria-label={t.drawer.close} style={{ border: 'none', background: '#f1f5f9', color: '#64748b', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>
               ✕
             </button>
           </div>
@@ -170,6 +171,8 @@ export default function ProjectDrawer() {
                   {c.name}
                   <button
                     onClick={() => removeCompanyFromProjectAction(selectedProject.id, c.id)}
+                    title={`${t.drawer.remove} ${c.name}`}
+                    aria-label={`${t.drawer.remove} ${c.name}`}
                     style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
                   >
                     ✕

@@ -106,6 +106,10 @@ export const cs: Dict = {
     kmFromOrigin: (km, place) => `${km} km od „${place}“`,
     kmFromDest: (km, place) => `${km} km od „${place}“`,
     noMatches: 'Žádní dopravci neodpovídají těmto filtrům.',
+    paginationShowing: (start, end, total) => `Zobrazeno ${start}–${end} z ${total}`,
+    paginationPrev: 'Předchozí',
+    paginationNext: 'Další',
+    paginationPageOf: (page, totalPages) => `Strana ${page} z ${totalPages}`,
   },
 
   drawer: {
@@ -168,6 +172,7 @@ export const cs: Dict = {
     noneOnFile: 'Žádné záznamy.',
     addTrailerTypePlaceholder: 'Přidat typ návěsu...',
     add: 'Přidat',
+    remove: 'Odebrat',
 
     capabilityTags: 'Schopnosti',
     addCapabilityPlaceholder: 'Přidat schopnost...',
