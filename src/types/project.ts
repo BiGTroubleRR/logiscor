@@ -18,6 +18,10 @@ export type ProjectCompanyLink = {
   project_id: string;
   company_id: string;
   added_by: string;
+  // The rate this company quoted for the project, and any notes on that proposal — captured
+  // when the company is added, editable afterward. Null/empty until staff fill them in.
+  quoted_rate: number | null;
+  remarks: string;
   created_at: string;
 };
 

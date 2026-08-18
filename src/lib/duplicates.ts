@@ -37,6 +37,49 @@ export function appendHubNote(description: string, note: string): string {
   return trimmed ? `${trimmed}\n\n${note}` : note;
 }
 
+// What a merge writes onto the surviving company — the loser is soft-deleted separately
+// (see mergeCompanies in supabase/companies.ts). Blank scalar fields on the survivor are
+// filled from the loser rather than left empty; array fields are unioned rather than
+// replaced; the loser's own description isn't discarded, just folded in as a note, so a
+// merge never silently drops context the way overwriting fields would.
+export function buildMergedCompanyPatch<
+  T extends {
+    id: string;
+    name: string;
+    types: string[];
+    country: string;
+    region: string;
+    city: string;
+    website: string;
+    email: string;
+    phone: string;
+    description: string;
+    capability_tags: string[];
+    trailer_types: string[];
+    countries_served: string[];
+  },
+>(survivor: T, loser: T): Partial<T> {
+  const fillBlank = (a: string, b: string) => (a.trim() ? a : b);
+  const union = (a: string[], b: string[]) => Array.from(new Set([...a, ...b]));
+
+  const mergeNote = `Merged with "${loser.name}".${loser.description.trim() ? ` Their notes: ${loser.description.trim()}` : ''}`;
+  const description = survivor.description.trim() ? `${survivor.description.trim()}\n\n${mergeNote}` : mergeNote;
+
+  return {
+    country: fillBlank(survivor.country, loser.country),
+    region: fillBlank(survivor.region, loser.region),
+    city: fillBlank(survivor.city, loser.city),
+    website: fillBlank(survivor.website, loser.website),
+    email: fillBlank(survivor.email, loser.email),
+    phone: fillBlank(survivor.phone, loser.phone),
+    description,
+    types: union(survivor.types, loser.types),
+    capability_tags: union(survivor.capability_tags, loser.capability_tags),
+    trailer_types: union(survivor.trailer_types, loser.trailer_types),
+    countries_served: union(survivor.countries_served, loser.countries_served),
+  } as Partial<T>;
+}
+
 export type DuplicateFlags = {
   hasDuplicateMatch: boolean;
   isDuplicate: boolean;

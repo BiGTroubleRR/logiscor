@@ -123,6 +123,8 @@ export const en = {
     possibleDuplicateOf: (n: number) => `⚠ Possible duplicate of ${n === 1 ? '1 other entry' : `${n} other entries`}`,
     notADuplicate: 'Not a duplicate',
     duplicateFlagDismissed: 'Duplicate flag dismissed for this company.',
+    merge: 'Merge',
+    mergeIntoThis: (name: string) => `Merge "${name}" into this company`,
     undo: 'Undo',
 
     companyTypes: 'Company Types',
@@ -278,6 +280,8 @@ export const en = {
     latLngMustBeNumbers: 'Latitude and longitude must be numbers.',
     couldNotSaveRetry: 'Could not save — please try again.',
     confirmDeleteCompany: (name: string) => `Delete "${name}"? You can restore it later from the Bin.`,
+    confirmMergeCompanies: (loserName: string, survivorName: string) =>
+      `Merge "${loserName}" into "${survivorName}"? "${loserName}"'s activity log, rate quotes, and project links move to "${survivorName}", and "${loserName}" is sent to the Bin (you can restore it later, but the merge itself won't undo).`,
     confirmPermanentlyDeleteCompany: (name: string) => `Permanently delete "${name}"? This cannot be undone.`,
     confirmDeleteProject: (name: string) => `Delete project "${name}"? Companies assigned to it will be unassigned. This cannot be undone.`,
     confirmOk: 'OK',
@@ -322,6 +326,13 @@ export const en = {
     companies: 'Companies',
     noCompaniesAssigned: 'No companies assigned yet.',
     searchCompaniesPlaceholder: 'Search companies to add...',
+    quotedRate: 'Quoted rate',
+    quotedRatePlaceholder: 'e.g. 2500',
+    remarks: 'Remarks',
+    remarksPlaceholder: 'Notes on this price proposal...',
+    noQuoteYet: 'No quote yet',
+    addToProject: 'Add to project',
+    editQuote: 'Edit quote',
   },
 
   projectStatuses: {

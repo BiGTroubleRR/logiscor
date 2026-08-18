@@ -22,19 +22,55 @@ export default function ProjectDrawer() {
     saveProjectDetails,
     companies,
     companyIdsByProject,
+    projectLinks,
     addCompanyToProjectAction,
+    updateProjectCompanyLinkAction,
     removeCompanyFromProjectAction,
   } = useCrm();
   const { locale, t } = useLocale();
   const dateLocale = locale === 'cs' ? 'cs-CZ' : 'en-US';
   const [companySearch, setCompanySearch] = useState('');
+  // Picking a company from search doesn't add it right away — it stages here so the rate/
+  // remarks fields can be filled in before the link is actually created.
+  const [pendingCompanyId, setPendingCompanyId] = useState<string | null>(null);
+  const [pendingRate, setPendingRate] = useState('');
+  const [pendingRemarks, setPendingRemarks] = useState('');
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+  const [editRate, setEditRate] = useState('');
+  const [editRemarks, setEditRemarks] = useState('');
 
   if (!selectedProject) return null;
 
   const assignedIds = companyIdsByProject.get(selectedProject.id) ?? new Set<string>();
   const assignedCompanies = companies.filter((c) => assignedIds.has(c.id));
+  const linkFor = (companyId: string) => projectLinks.find((l) => l.project_id === selectedProject.id && l.company_id === companyId);
   const query = companySearch.trim().toLowerCase();
   const searchResults = query ? companies.filter((c) => !assignedIds.has(c.id) && c.name.toLowerCase().includes(query)).slice(0, 8) : [];
+  const pendingCompany = pendingCompanyId ? companies.find((c) => c.id === pendingCompanyId) : null;
+
+  function startEditLink(companyId: string) {
+    const link = linkFor(companyId);
+    setEditingCompanyId(companyId);
+    setEditRate(link?.quoted_rate != null ? String(link.quoted_rate) : '');
+    setEditRemarks(link?.remarks ?? '');
+  }
+
+  async function confirmAddPending() {
+    if (!pendingCompanyId) return;
+    const rate = pendingRate.trim() ? Number(pendingRate) : null;
+    await addCompanyToProjectAction(selectedProject!.id, pendingCompanyId, rate, pendingRemarks.trim());
+    setPendingCompanyId(null);
+    setPendingRate('');
+    setPendingRemarks('');
+    setCompanySearch('');
+  }
+
+  async function confirmEditLink() {
+    if (!editingCompanyId) return;
+    const rate = editRate.trim() ? Number(editRate) : null;
+    await updateProjectCompanyLinkAction(selectedProject!.id, editingCompanyId, rate, editRemarks.trim());
+    setEditingCompanyId(null);
+  }
 
   return (
     <>
@@ -165,47 +201,136 @@ export default function ProjectDrawer() {
               hundreds of companies (unlike the small option lists elsewhere in the app). */}
           <div>
             <div style={sectionLabelStyle}>{t.projects.companies}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-              {assignedCompanies.map((c) => (
-                <span key={c.id} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {c.name}
-                  <button
-                    onClick={() => removeCompanyFromProjectAction(selectedProject.id, c.id)}
-                    title={`${t.drawer.remove} ${c.name}`}
-                    aria-label={`${t.drawer.remove} ${c.name}`}
-                    style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {assignedCompanies.map((c) => {
+                const link = linkFor(c.id);
+                const isEditing = editingCompanyId === c.id;
+                return (
+                  <div key={c.id} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{c.name}</span>
+                      <div style={{ display: 'flex', gap: 4, flex: '0 0 auto' }}>
+                        {!isEditing && (
+                          <button
+                            onClick={() => startEditLink(c.id)}
+                            title={t.projects.editQuote}
+                            aria-label={`${t.projects.editQuote} ${c.name}`}
+                            style={{ border: 'none', background: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}
+                          >
+                            ✎
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeCompanyFromProjectAction(selectedProject.id, c.id)}
+                          title={`${t.drawer.remove} ${c.name}`}
+                          aria-label={`${t.drawer.remove} ${c.name}`}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.projects.quotedRate}</span>
+                          <input
+                            type="number"
+                            value={editRate}
+                            onChange={(e) => setEditRate(e.target.value)}
+                            placeholder={t.projects.quotedRatePlaceholder}
+                            style={editInputStyle}
+                          />
+                        </label>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.projects.remarks}</span>
+                          <textarea
+                            value={editRemarks}
+                            onChange={(e) => setEditRemarks(e.target.value)}
+                            placeholder={t.projects.remarksPlaceholder}
+                            style={{ ...editInputStyle, minHeight: 50, resize: 'vertical' }}
+                          />
+                        </label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={confirmEditLink} style={primaryButtonStyle}>
+                            {t.drawer.save}
+                          </button>
+                          <button onClick={() => setEditingCompanyId(null)} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
+                            {t.drawer.cancel}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                        <span style={{ fontWeight: 600, color: link?.quoted_rate != null ? '#0f172a' : '#94a3b8' }}>
+                          {link?.quoted_rate != null ? `€${link.quoted_rate.toLocaleString()}` : t.projects.noQuoteYet}
+                        </span>
+                        {link?.remarks ? <span> — {link.remarks}</span> : null}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {assignedCompanies.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.projects.noCompaniesAssigned}</span>}
             </div>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                value={companySearch}
-                onChange={(e) => setCompanySearch(e.target.value)}
-                placeholder={t.projects.searchCompaniesPlaceholder}
-                style={editInputStyle}
-              />
-              {searchResults.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 1, maxHeight: 220, overflow: 'auto' }}>
-                  {searchResults.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        addCompanyToProjectAction(selectedProject.id, c.id);
-                        setCompanySearch('');
-                      }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none', padding: '8px 10px', fontSize: 13, color: '#334155', cursor: 'pointer' }}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
+
+            {pendingCompany ? (
+              <div style={{ border: '1px solid #bfdbfe', background: '#eff6ff', borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d4ed8' }}>{pendingCompany.name}</span>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>{t.projects.quotedRate}</span>
+                  <input
+                    type="number"
+                    value={pendingRate}
+                    onChange={(e) => setPendingRate(e.target.value)}
+                    placeholder={t.projects.quotedRatePlaceholder}
+                    style={editInputStyle}
+                    autoFocus
+                  />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>{t.projects.remarks}</span>
+                  <textarea
+                    value={pendingRemarks}
+                    onChange={(e) => setPendingRemarks(e.target.value)}
+                    placeholder={t.projects.remarksPlaceholder}
+                    style={{ ...editInputStyle, minHeight: 50, resize: 'vertical' }}
+                  />
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={confirmAddPending} style={primaryButtonStyle}>
+                    {t.projects.addToProject}
+                  </button>
+                  <button onClick={() => setPendingCompanyId(null)} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
+                    {t.drawer.cancel}
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  placeholder={t.projects.searchCompaniesPlaceholder}
+                  style={editInputStyle}
+                />
+                {searchResults.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 1, maxHeight: 220, overflow: 'auto' }}>
+                    {searchResults.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setPendingCompanyId(c.id)}
+                        style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none', padding: '8px 10px', fontSize: 13, color: '#334155', cursor: 'pointer' }}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -134,6 +134,8 @@ export const cs: Dict = {
     },
     notADuplicate: 'Není duplikát',
     duplicateFlagDismissed: 'Příznak duplicity byl pro tuto společnost zrušen.',
+    merge: 'Sloučit',
+    mergeIntoThis: (name) => `Sloučit „${name}“ do této společnosti`,
     undo: 'Zpět',
 
     companyTypes: 'Typy společnosti',
@@ -316,6 +318,8 @@ export const cs: Dict = {
     latLngMustBeNumbers: 'Zeměpisná šířka a délka musí být čísla.',
     couldNotSaveRetry: 'Uložení se nezdařilo — zkuste to znovu.',
     confirmDeleteCompany: (name) => `Odstranit „${name}“? Později ji můžete obnovit z Koše.`,
+    confirmMergeCompanies: (loserName, survivorName) =>
+      `Sloučit „${loserName}“ do „${survivorName}“? Aktivita, cenové nabídky a projekty společnosti „${loserName}“ se přesunou do „${survivorName}“ a „${loserName}“ se přesune do Koše (lze ji obnovit, ale sloučení samo se nevrátí).`,
     confirmPermanentlyDeleteCompany: (name) => `Trvale odstranit „${name}“? Tuto akci nelze vrátit zpět.`,
     confirmDeleteProject: (name) => `Odstranit projekt „${name}“? Přiřazené společnosti budou odebrány. Tuto akci nelze vrátit zpět.`,
     confirmOk: 'OK',
@@ -360,6 +364,13 @@ export const cs: Dict = {
     companies: 'Společnosti',
     noCompaniesAssigned: 'Zatím nejsou přiřazeny žádné společnosti.',
     searchCompaniesPlaceholder: 'Vyhledat společnosti k přidání...',
+    quotedRate: 'Nabídnutá cena',
+    quotedRatePlaceholder: 'např. 2500',
+    remarks: 'Poznámky',
+    remarksPlaceholder: 'Poznámky k této cenové nabídce...',
+    noQuoteYet: 'Zatím bez nabídky',
+    addToProject: 'Přidat do projektu',
+    editQuote: 'Upravit nabídku',
   },
 
   projectStatuses: {

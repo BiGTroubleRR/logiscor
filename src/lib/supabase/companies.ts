@@ -5,7 +5,7 @@
 import { createAdminClient } from './admin-server';
 import type { Company, ActivityLogEntry, NewCompanyInput, ActivityType } from '@/types/company';
 import type { ImportedCompanyRow } from '@/lib/company-import';
-import { hubNoteText, appendHubNote } from '@/lib/duplicates';
+import { hubNoteText, appendHubNote, buildMergedCompanyPatch } from '@/lib/duplicates';
 
 export async function listCompanies(): Promise<Company[]> {
   const supabase = createAdminClient();
@@ -249,6 +249,52 @@ export async function permanentlyDeleteCompany(id: string): Promise<void> {
   const supabase = createAdminClient();
   const { error } = await supabase.from('companies').delete().eq('id', id);
   if (error) throw error;
+}
+
+// Folds `loserId` into `survivorId`: fills the survivor's blank fields and unions its tag/
+// type/country lists from the loser (see buildMergedCompanyPatch), reassigns the loser's
+// activity log, rate quotes, and project links onto the survivor, then soft-deletes the
+// loser via the same path as a regular delete (reversible from the Bin, unlike a hard merge).
+export async function mergeCompanies(survivorId: string, loserId: string): Promise<Company> {
+  const supabase = createAdminClient();
+
+  const { data: rows, error: fetchError } = await supabase.from('companies').select('*').in('id', [survivorId, loserId]);
+  if (fetchError) throw fetchError;
+  const survivor = (rows ?? []).find((r) => r.id === survivorId) as unknown as Company | undefined;
+  const loser = (rows ?? []).find((r) => r.id === loserId) as unknown as Company | undefined;
+  if (!survivor || !loser) throw new Error('Both companies must exist to merge.');
+
+  const patch = buildMergedCompanyPatch(survivor, loser);
+  const { data: merged, error: updateError } = await supabase.from('companies').update(patch).eq('id', survivorId).select('*').single();
+  if (updateError) throw updateError;
+
+  const { error: activityError } = await supabase.from('activity_log').update({ company_id: survivorId }).eq('company_id', loserId);
+  if (activityError) throw activityError;
+
+  const { error: ratesError } = await supabase.from('rate_quotes').update({ company_id: survivorId }).eq('company_id', loserId);
+  if (ratesError) throw ratesError;
+
+  // project_companies has a unique (project_id, company_id) constraint — if the survivor is
+  // already on a project the loser was also on, reassigning would collide. Drop the loser's
+  // link for those and keep the survivor's existing one (it may already carry its own quote).
+  const { data: survivorLinks, error: survivorLinksError } = await supabase.from('project_companies').select('project_id').eq('company_id', survivorId);
+  if (survivorLinksError) throw survivorLinksError;
+  const survivorProjectIds = new Set((survivorLinks ?? []).map((l) => l.project_id as string));
+
+  const { data: loserLinks, error: loserLinksError } = await supabase.from('project_companies').select('project_id').eq('company_id', loserId);
+  if (loserLinksError) throw loserLinksError;
+  const conflictingProjectIds = (loserLinks ?? []).map((l) => l.project_id as string).filter((pid) => survivorProjectIds.has(pid));
+
+  if (conflictingProjectIds.length) {
+    const { error: dropError } = await supabase.from('project_companies').delete().eq('company_id', loserId).in('project_id', conflictingProjectIds);
+    if (dropError) throw dropError;
+  }
+  const { error: reassignError } = await supabase.from('project_companies').update({ company_id: survivorId }).eq('company_id', loserId);
+  if (reassignError) throw reassignError;
+
+  await deleteCompany(loserId);
+
+  return merged as unknown as Company;
 }
 
 export async function listActivityLog(companyId: string): Promise<ActivityLogEntry[]> {

@@ -150,6 +150,15 @@ export async function setDuplicateDismissedApi(id: string, dismissed: boolean): 
   return unwrap<Company>(res, 'company');
 }
 
+export async function mergeCompaniesApi(survivorId: string, loserId: string): Promise<Company> {
+  const res = await fetch('/api/companies/merge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ survivorId, loserId }),
+  });
+  return unwrap<Company>(res, 'company');
+}
+
 export async function fetchActivityLog(companyId: string): Promise<ActivityLogEntry[]> {
   const res = await fetch(`/api/companies/activity?companyId=${encodeURIComponent(companyId)}`, { cache: 'no-store' });
   return unwrap<ActivityLogEntry[]>(res, 'entries');
@@ -244,11 +253,30 @@ export async function deleteProjectApi(id: string): Promise<void> {
   await unwrap<{ ok: true }>(res, 'ok');
 }
 
-export async function addCompanyToProjectApi(projectId: string, companyId: string): Promise<ProjectCompanyLink> {
+export async function addCompanyToProjectApi(
+  projectId: string,
+  companyId: string,
+  quotedRate: number | null = null,
+  remarks: string = '',
+): Promise<ProjectCompanyLink> {
   const res = await fetch(`/api/projects/${projectId}/companies`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ companyId }),
+    body: JSON.stringify({ companyId, quotedRate, remarks }),
+  });
+  return unwrap<ProjectCompanyLink>(res, 'link');
+}
+
+export async function updateProjectCompanyLinkApi(
+  projectId: string,
+  companyId: string,
+  quotedRate: number | null,
+  remarks: string,
+): Promise<ProjectCompanyLink> {
+  const res = await fetch(`/api/projects/${projectId}/companies`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ companyId, quotedRate, remarks }),
   });
   return unwrap<ProjectCompanyLink>(res, 'link');
 }

@@ -49,11 +49,17 @@ export async function deleteProject(id: string): Promise<void> {
 // A unique-violation (company already linked to this project) is treated as idempotent —
 // re-select the existing link rather than throwing, since both the drawer's "add to project"
 // chip UI and the Projects page's picker can plausibly race on the same pair.
-export async function addCompanyToProject(projectId: string, companyId: string, addedBy: string): Promise<ProjectCompanyLink> {
+export async function addCompanyToProject(
+  projectId: string,
+  companyId: string,
+  addedBy: string,
+  quotedRate: number | null,
+  remarks: string,
+): Promise<ProjectCompanyLink> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('project_companies')
-    .insert({ project_id: projectId, company_id: companyId, added_by: addedBy })
+    .insert({ project_id: projectId, company_id: companyId, added_by: addedBy, quoted_rate: quotedRate, remarks })
     .select('*')
     .single();
   if (error) {
@@ -69,6 +75,25 @@ export async function addCompanyToProject(projectId: string, companyId: string, 
     }
     throw error;
   }
+  return data as unknown as ProjectCompanyLink;
+}
+
+// Lets staff correct/fill in the quote after the company's already been added — the price
+// often isn't known yet at add time, or the initial figure was a placeholder.
+export async function updateProjectCompanyLink(
+  projectId: string,
+  companyId: string,
+  patch: { quoted_rate: number | null; remarks: string },
+): Promise<ProjectCompanyLink> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('project_companies')
+    .update(patch)
+    .eq('project_id', projectId)
+    .eq('company_id', companyId)
+    .select('*')
+    .single();
+  if (error) throw error;
   return data as unknown as ProjectCompanyLink;
 }
 

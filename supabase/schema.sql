@@ -244,6 +244,11 @@ create table if not exists public.project_companies (
   project_id uuid not null references public.projects (id) on delete cascade,
   company_id text not null references public.companies (id) on delete cascade,
   added_by text not null default '',
+  -- The rate quoted by this company for this project, and any staff notes on that quote —
+  -- captured at the point a company is added to a project (and editable after), so the
+  -- proposal context isn't lost in a side channel.
+  quoted_rate numeric,
+  remarks text not null default '',
   created_at timestamptz not null default now(),
   unique (project_id, company_id)
 );

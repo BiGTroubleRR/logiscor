@@ -87,6 +87,8 @@ type ProjectCompanyRow = {
   project_id: string;
   company_id: string;
   added_by: string;
+  quoted_rate: number | null;
+  remarks: string;
   created_at: string;
 };
 

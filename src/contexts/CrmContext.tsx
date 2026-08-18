@@ -146,6 +146,7 @@ type CrmContextValue = {
   permanentlyDeleteCompanyAction: (id: string) => Promise<void>;
 
   projects: Project[];
+  projectLinks: ProjectCompanyLink[];
   projectViews: ProjectView[];
   projectOptions: { value: string; label: string }[];
   companyIdsByProject: Map<string, Set<string>>;
@@ -162,7 +163,8 @@ type CrmContextValue = {
   cancelEditProject: () => void;
   setProjectField: <K extends keyof NewProjectInput>(key: K, value: NewProjectInput[K]) => void;
   saveProjectDetails: () => Promise<void>;
-  addCompanyToProjectAction: (projectId: string, companyId: string) => Promise<void>;
+  addCompanyToProjectAction: (projectId: string, companyId: string, quotedRate?: number | null, remarks?: string) => Promise<void>;
+  updateProjectCompanyLinkAction: (projectId: string, companyId: string, quotedRate: number | null, remarks: string) => Promise<void>;
   removeCompanyFromProjectAction: (projectId: string, companyId: string) => Promise<void>;
   addCompanyToSelectedProject: () => Promise<void>;
   removeCompanyFromSelectedProject: (projectId: string) => Promise<void>;
@@ -237,6 +239,7 @@ type CrmContextValue = {
   duplicateCompanyAction: (id: string) => Promise<void>;
   importCompanies: (rows: ImportedCompanyRow[]) => Promise<{ importedCount: number; rowErrors: ImportRowError[] } | null>;
   deleteCompanyAction: (id: string) => Promise<void>;
+  mergeCompaniesAction: (survivorId: string, loserId: string) => Promise<void>;
   dismissDuplicate: (id: string) => Promise<void>;
   restoreDuplicate: (id: string) => Promise<void>;
   setLabelColor: (id: string, color: string) => Promise<void>;
@@ -1025,6 +1028,29 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     [rawCompanies, runMutation, selectedId, closeDrawer, t, askConfirm],
   );
 
+  // Folds `loserId` into `survivorId` (see mergeCompanies in supabase/companies.ts) and
+  // sends the loser to the Bin. The loser's project links move server-side, so re-fetch
+  // projects/links afterward rather than trying to hand-simulate that reassignment here.
+  const mergeCompaniesAction = useCallback(
+    async (survivorId: string, loserId: string) => {
+      const survivor = rawCompanies.find((c) => c.id === survivorId);
+      const loser = rawCompanies.find((c) => c.id === loserId);
+      if (!survivor || !loser) return;
+      if (!(await askConfirm(t.errors.confirmMergeCompanies(loser.name, survivor.name)))) return;
+      const merged = await runMutation(() => api.mergeCompaniesApi(survivorId, loserId));
+      if (merged) {
+        setRawCompanies((list) => list.filter((c) => c.id !== loserId).map((c) => (c.id === survivorId ? merged : c)));
+        if (selectedId === loserId) closeDrawer();
+        const projectData = await api.fetchProjects().catch(() => null);
+        if (projectData) {
+          setProjects(projectData.projects);
+          setProjectLinks(projectData.links);
+        }
+      }
+    },
+    [rawCompanies, runMutation, selectedId, closeDrawer, t, askConfirm],
+  );
+
   const openBinView = useCallback(() => {
     setView('bin');
     setBinLoading(true);
@@ -1132,9 +1158,19 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, [selectedProjectId, projectDraft, runMutation]);
 
   const addCompanyToProjectAction = useCallback(
-    async (projectId: string, companyId: string) => {
-      const link = await runMutation(() => api.addCompanyToProjectApi(projectId, companyId));
+    async (projectId: string, companyId: string, quotedRate: number | null = null, remarks: string = '') => {
+      const link = await runMutation(() => api.addCompanyToProjectApi(projectId, companyId, quotedRate, remarks));
       if (link) setProjectLinks((list) => (list.some((l) => l.project_id === projectId && l.company_id === companyId) ? list : [...list, link]));
+    },
+    [runMutation],
+  );
+
+  // Lets staff fill in or correct the quote/remarks after the company's already on the
+  // project — the price often isn't known yet at add time.
+  const updateProjectCompanyLinkAction = useCallback(
+    async (projectId: string, companyId: string, quotedRate: number | null, remarks: string) => {
+      const link = await runMutation(() => api.updateProjectCompanyLinkApi(projectId, companyId, quotedRate, remarks));
+      if (link) setProjectLinks((list) => list.map((l) => (l.project_id === projectId && l.company_id === companyId ? link : l)));
     },
     [runMutation],
   );
@@ -1205,6 +1241,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     restoreCompanyAction,
     permanentlyDeleteCompanyAction,
     projects,
+    projectLinks,
     projectViews,
     projectOptions,
     companyIdsByProject,
@@ -1222,6 +1259,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     setProjectField,
     saveProjectDetails,
     addCompanyToProjectAction,
+    updateProjectCompanyLinkAction,
     removeCompanyFromProjectAction,
     addCompanyToSelectedProject,
     removeCompanyFromSelectedProject,
@@ -1287,6 +1325,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     duplicateCompanyAction,
     importCompanies,
     deleteCompanyAction,
+    mergeCompaniesAction,
     dismissDuplicate,
     restoreDuplicate,
     setLabelColor,
@@ -1304,6 +1343,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       restoreCompanyAction,
       permanentlyDeleteCompanyAction,
       projects,
+      projectLinks,
       projectViews,
       projectOptions,
       companyIdsByProject,
@@ -1321,6 +1361,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setProjectField,
       saveProjectDetails,
       addCompanyToProjectAction,
+      updateProjectCompanyLinkAction,
       removeCompanyFromProjectAction,
       addCompanyToSelectedProject,
       removeCompanyFromSelectedProject,
@@ -1386,6 +1427,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       duplicateCompanyAction,
       importCompanies,
       deleteCompanyAction,
+      mergeCompaniesAction,
       dismissDuplicate,
       restoreDuplicate,
       setLabelColor,

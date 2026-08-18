@@ -4,7 +4,7 @@
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
-import { addCompanyToProject, removeCompanyFromProject } from '@/lib/supabase/projects';
+import { addCompanyToProject, removeCompanyFromProject, updateProjectCompanyLink } from '@/lib/supabase/projects';
 
 function errorResponse(e: unknown) {
   if (e instanceof MissingServiceRoleKeyError) {
@@ -13,16 +13,39 @@ function errorResponse(e: unknown) {
   return NextResponse.json({ error: e instanceof Error ? e.message : 'Unexpected error.' }, { status: 500 });
 }
 
+// A blank/whitespace-only rate input means "not quoted yet", not zero.
+function parseQuotedRate(raw: unknown): number | null {
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const identity = await getIdentity();
   if (!identity) return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
 
   const { id } = await params;
-  const body = (await request.json().catch(() => null)) as { companyId?: string } | null;
+  const body = (await request.json().catch(() => null)) as { companyId?: string; quotedRate?: unknown; remarks?: string } | null;
   if (!body?.companyId) return NextResponse.json({ error: 'Expected "companyId".' }, { status: 400 });
 
   try {
-    const link = await addCompanyToProject(id, body.companyId, identity.name);
+    const link = await addCompanyToProject(id, body.companyId, identity.name, parseQuotedRate(body.quotedRate), body.remarks?.trim() ?? '');
+    return NextResponse.json({ link });
+  } catch (e) {
+    return errorResponse(e);
+  }
+}
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const identity = await getIdentity();
+  if (!identity) return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
+
+  const { id } = await params;
+  const body = (await request.json().catch(() => null)) as { companyId?: string; quotedRate?: unknown; remarks?: string } | null;
+  if (!body?.companyId) return NextResponse.json({ error: 'Expected "companyId".' }, { status: 400 });
+
+  try {
+    const link = await updateProjectCompanyLink(id, body.companyId, { quoted_rate: parseQuotedRate(body.quotedRate), remarks: body.remarks?.trim() ?? '' });
     return NextResponse.json({ link });
   } catch (e) {
     return errorResponse(e);

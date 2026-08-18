@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendHubNote, computeDuplicateFlags, hubNoteText, normalizeCompanyName, normalizeDomain } from './duplicates';
+import { appendHubNote, buildMergedCompanyPatch, computeDuplicateFlags, hubNoteText, normalizeCompanyName, normalizeDomain } from './duplicates';
 
 describe('normalizeCompanyName', () => {
   it('lowercases and strips legal-suffix words', () => {
@@ -98,5 +98,68 @@ describe('computeDuplicateFlags', () => {
     ];
     const result = computeDuplicateFlags(companies);
     expect(result.every((c) => !c.hasDuplicateMatch)).toBe(true);
+  });
+});
+
+describe('buildMergedCompanyPatch', () => {
+  type TestCompany = {
+    id: string;
+    name: string;
+    types: string[];
+    country: string;
+    region: string;
+    city: string;
+    website: string;
+    email: string;
+    phone: string;
+    description: string;
+    capability_tags: string[];
+    trailer_types: string[];
+    countries_served: string[];
+  };
+  const base: TestCompany = {
+    id: '1',
+    name: 'Acme Freight',
+    types: ['carrier'],
+    country: '',
+    region: '',
+    city: '',
+    website: '',
+    email: '',
+    phone: '',
+    description: '',
+    capability_tags: [],
+    trailer_types: [],
+    countries_served: [],
+  };
+
+  it('fills blank survivor fields from the loser without overwriting non-blank ones', () => {
+    const survivor: TestCompany = { ...base, phone: '+420 111', city: 'Prague' };
+    const loser: TestCompany = { ...base, id: '2', name: 'Acme Freight s.r.o.', city: 'Brno', email: 'x@acme.example' };
+    const patch = buildMergedCompanyPatch(survivor, loser);
+    expect(patch.city).toBe('Prague');
+    expect(patch.email).toBe('x@acme.example');
+  });
+
+  it('unions array fields instead of replacing them', () => {
+    const survivor: TestCompany = { ...base, capability_tags: ['Road Freight'], countries_served: ['CZ'] };
+    const loser: TestCompany = { ...base, id: '2', capability_tags: ['Customs'], countries_served: ['CZ', 'SK'], types: ['manufacturer'] };
+    const patch = buildMergedCompanyPatch(survivor, loser);
+    expect(patch.capability_tags).toEqual(['Road Freight', 'Customs']);
+    expect(patch.countries_served).toEqual(['CZ', 'SK']);
+    expect(patch.types).toEqual(['carrier', 'manufacturer']);
+  });
+
+  it('folds the loser description into a merge note instead of dropping it', () => {
+    const survivor: TestCompany = { ...base, description: 'Reliable partner.' };
+    const loser: TestCompany = { ...base, id: '2', name: 'Acme Freight s.r.o.', description: 'Slow on customs paperwork.' };
+    const patch = buildMergedCompanyPatch(survivor, loser);
+    expect(patch.description).toBe('Reliable partner.\n\nMerged with "Acme Freight s.r.o.". Their notes: Slow on customs paperwork.');
+  });
+
+  it('uses just the merge note when the survivor had no description', () => {
+    const loser: TestCompany = { ...base, id: '2', name: 'Acme Freight s.r.o.', description: '' };
+    const patch = buildMergedCompanyPatch(base, loser);
+    expect(patch.description).toBe('Merged with "Acme Freight s.r.o.".');
   });
 });

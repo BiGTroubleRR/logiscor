@@ -69,6 +69,7 @@ export default function CompanyProfileContent() {
     closeDrawer,
     deleteCompanyAction,
     duplicateCompanyAction,
+    mergeCompaniesAction,
     draft,
     setDraft,
     saveStrength,
@@ -241,7 +242,16 @@ export default function CompanyProfileContent() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {selected.duplicateMatches.map((dup) => (
-                <DuplicateLink key={dup.id} id={dup.id} name={dup.name} />
+                <div key={dup.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <DuplicateLink id={dup.id} name={dup.name} />
+                  <button
+                    onClick={() => mergeCompaniesAction(selected.id, dup.id)}
+                    title={t.drawer.mergeIntoThis(dup.name)}
+                    style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 11, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer', padding: 0, flex: '0 0 auto' }}
+                  >
+                    {t.drawer.merge}
+                  </button>
+                </div>
               ))}
             </div>
           </div>
