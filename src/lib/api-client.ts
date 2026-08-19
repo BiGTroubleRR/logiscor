@@ -178,6 +178,12 @@ export async function fetchRateQuotes(companyId: string): Promise<RateQuote[]> {
   return unwrap<RateQuote[]>(res, 'quotes');
 }
 
+// Every quote across every company — used for the route search's quoted-rate column.
+export async function fetchAllRateQuotes(): Promise<RateQuote[]> {
+  const res = await fetch('/api/companies/rates', { cache: 'no-store' });
+  return unwrap<RateQuote[]>(res, 'quotes');
+}
+
 export type NewRateQuoteInput = {
   origin: string;
   destination: string;

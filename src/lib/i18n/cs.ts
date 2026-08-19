@@ -47,6 +47,7 @@ export const cs: Dict = {
     allTrailerTypes: 'Všechny typy návěsů',
     allProjects: 'Všechny projekty',
     possibleDuplicatesOnly: (n) => `Pouze možné duplikáty (${n})`,
+    hasQuoteOnly: (n) => `Má nabídku na tuto trasu (${n})`,
     clearFilters: 'Vymazat filtry',
     emailFiltered: (n) => `✉ E-mail filtrovaným (${n})`,
     exportCsv: '⬇ Exportovat CSV',
@@ -105,6 +106,9 @@ export const cs: Dict = {
     colDistanceRoute: 'Vzdálenost (Výchozí / Cíl)',
     kmFromOrigin: (km, place) => `${km} km od „${place}“`,
     kmFromDest: (km, place) => `${km} km od „${place}“`,
+    colQuotedForRoute: 'Nabídnutá cena',
+    quotedRateOn: (rate, date) => `€${rate.toLocaleString()} — nabídnuto ${date}`,
+    quotedRateApprox: '⚠ Ne přesně tato trasa — pouze stejná země. ',
     noMatches: 'Žádní dopravci neodpovídají těmto filtrům.',
     paginationShowing: (start, end, total) => `Zobrazeno ${start}–${end} z ${total}`,
     paginationPrev: 'Předchozí',
@@ -371,6 +375,7 @@ export const cs: Dict = {
     noQuoteYet: 'Zatím bez nabídky',
     addToProject: 'Přidat do projektu',
     editQuote: 'Upravit nabídku',
+    lowestQuote: 'Nejnižší',
   },
 
   projectStatuses: {

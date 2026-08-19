@@ -42,8 +42,21 @@ export default function ProjectDrawer() {
   if (!selectedProject) return null;
 
   const assignedIds = companyIdsByProject.get(selectedProject.id) ?? new Set<string>();
-  const assignedCompanies = companies.filter((c) => assignedIds.has(c.id));
   const linkFor = (companyId: string) => projectLinks.find((l) => l.project_id === selectedProject.id && l.company_id === companyId);
+  // Sorted by quoted rate ascending (blanks last) — the point of capturing a quote at all is
+  // comparing who's cheapest, so that comparison should be visible without extra clicks.
+  const assignedCompanies = companies
+    .filter((c) => assignedIds.has(c.id))
+    .slice()
+    .sort((a, b) => {
+      const ra = linkFor(a.id)?.quoted_rate ?? null;
+      const rb = linkFor(b.id)?.quoted_rate ?? null;
+      if (ra == null && rb == null) return 0;
+      if (ra == null) return 1;
+      if (rb == null) return -1;
+      return ra - rb;
+    });
+  const lowestQuoteCompanyId = assignedCompanies.find((c) => linkFor(c.id)?.quoted_rate != null)?.id ?? null;
   const query = companySearch.trim().toLowerCase();
   const searchResults = query ? companies.filter((c) => !assignedIds.has(c.id) && c.name.toLowerCase().includes(query)).slice(0, 8) : [];
   const pendingCompany = pendingCompanyId ? companies.find((c) => c.id === pendingCompanyId) : null;
@@ -205,8 +218,17 @@ export default function ProjectDrawer() {
               {assignedCompanies.map((c) => {
                 const link = linkFor(c.id);
                 const isEditing = editingCompanyId === c.id;
+                const isLowest = c.id === lowestQuoteCompanyId;
                 return (
-                  <div key={c.id} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+                  <div
+                    key={c.id}
+                    style={{
+                      background: isLowest ? '#f0fdf4' : '#f8fafc',
+                      border: isLowest ? '1px solid #86efac' : '1px solid #e2e8f0',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{c.name}</span>
                       <div style={{ display: 'flex', gap: 4, flex: '0 0 auto' }}>
@@ -266,6 +288,11 @@ export default function ProjectDrawer() {
                         <span style={{ fontWeight: 600, color: link?.quoted_rate != null ? '#0f172a' : '#94a3b8' }}>
                           {link?.quoted_rate != null ? `€${link.quoted_rate.toLocaleString()}` : t.projects.noQuoteYet}
                         </span>
+                        {isLowest && (
+                          <span style={{ marginLeft: 6, background: '#dcfce7', color: '#166534', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            {t.projects.lowestQuote}
+                          </span>
+                        )}
                         {link?.remarks ? <span> — {link.remarks}</span> : null}
                       </div>
                     )}

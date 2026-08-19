@@ -23,6 +23,7 @@ export default function FilterBar() {
     trailerTypeOptions,
     projectOptions,
     duplicateCount,
+    hasQuoteCount,
     filtered,
     addCompany,
     route,
@@ -113,6 +114,15 @@ export default function FilterBar() {
         <input type="checkbox" checked={filters.duplicatesOnly} onChange={() => setFilters({ duplicatesOnly: !filters.duplicatesOnly })} />
         {t.filterBar.possibleDuplicatesOnly(duplicateCount)}
       </label>
+
+      {/* Only meaningful with a searched lane to have a quote for — hidden the rest of the time
+          rather than shown disabled, since there's nothing to explain without route context. */}
+      {route.active && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={filters.hasQuoteOnly} onChange={() => setFilters({ hasQuoteOnly: !filters.hasQuoteOnly })} />
+          {t.filterBar.hasQuoteOnly(hasQuoteCount)}
+        </label>
+      )}
 
       <button onClick={clearFilters} style={linkButtonStyle}>
         {t.filterBar.clearFilters}

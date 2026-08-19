@@ -33,6 +33,16 @@ export async function listRateQuotes(companyId: string): Promise<RateQuote[]> {
   return (data ?? []) as unknown as RateQuote[];
 }
 
+// The whole table, unfiltered — used only for the route search's "quoted rate for this lane"
+// column (see quoteMatchesRoute in lib/route-match.ts), which needs to check every company's
+// quotes against the searched origin/destination text, not just one company's.
+export async function listAllRateQuotes(): Promise<RateQuote[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from('rate_quotes').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as RateQuote[];
+}
+
 export async function addRateQuote(companyId: string, input: NewRateQuoteInput): Promise<RateQuote> {
   const supabase = createAdminClient();
   const { data, error } = await supabase

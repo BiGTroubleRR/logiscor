@@ -40,6 +40,7 @@ export const en = {
     allTrailerTypes: 'All trailer types',
     allProjects: 'All projects',
     possibleDuplicatesOnly: (n: number) => `Possible duplicates only (${n})`,
+    hasQuoteOnly: (n: number) => `Has a quote for this lane (${n})`,
     clearFilters: 'Clear filters',
     emailFiltered: (n: number) => `✉ Email Filtered (${n})`,
     exportCsv: '⬇ Export CSV',
@@ -98,6 +99,9 @@ export const en = {
     colDistanceRoute: 'Distance (Origin / Dest.)',
     kmFromOrigin: (km: number, place: string) => `${km} km from "${place}"`,
     kmFromDest: (km: number, place: string) => `${km} km from "${place}"`,
+    colQuotedForRoute: 'Quoted Rate',
+    quotedRateOn: (rate: number, date: string) => `€${rate.toLocaleString()} — quoted ${date}`,
+    quotedRateApprox: '⚠ Not this exact route — same country only. ',
     noMatches: 'No carriers match these filters.',
     paginationShowing: (start: number, end: number, total: number) => `Showing ${start}–${end} of ${total}`,
     paginationPrev: 'Previous',
@@ -333,6 +337,7 @@ export const en = {
     noQuoteYet: 'No quote yet',
     addToProject: 'Add to project',
     editQuote: 'Edit quote',
+    lowestQuote: 'Lowest',
   },
 
   projectStatuses: {

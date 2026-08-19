@@ -6,7 +6,7 @@ import type { NewProjectInput, Project, ProjectCompanyLink, ProjectView } from '
 import type { Identity } from '@/lib/role';
 import { haversineKm, spreadOverlappingCoords } from '@/lib/geo';
 import { computeDuplicateFlags } from '@/lib/duplicates';
-import { matchCompanyAgainstRoute, type RouteMatchResult } from '@/lib/route-match';
+import { matchCompanyAgainstRoute, matchRouteQuoteTier, type RouteMatchResult, type RouteQuoteMatchTier } from '@/lib/route-match';
 import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
@@ -25,6 +25,9 @@ export type FilterState = {
   trailerType: string;
   project: string;
   duplicatesOnly: boolean;
+  // Only meaningful during an active route search (see routeQuotesByCompany) — has no effect
+  // otherwise, since there's no searched lane to have a quote for.
+  hasQuoteOnly: boolean;
   search: string;
 };
 
@@ -36,6 +39,7 @@ const DEFAULT_FILTERS: FilterState = {
   trailerType: 'all',
   project: 'all',
   duplicatesOnly: false,
+  hasQuoteOnly: false,
   search: '',
 };
 
@@ -57,6 +61,8 @@ export type RouteState = {
   // corridor search itself scores against `path`, not this).
   routeInfo: { distanceKm: number; durationMin: number } | null;
 };
+
+export type RouteQuoteMatch = { quote: RateQuote; tier: RouteQuoteMatchTier };
 
 const DEFAULT_ROUTE: RouteState = {
   originText: '',
@@ -192,8 +198,10 @@ type CrmContextValue = {
   allTrailerTypes: string[];
   allCountriesServed: string[];
   duplicateCount: number;
+  hasQuoteCount: number;
 
   route: RouteState;
+  routeQuotesByCompany: Map<string, RouteQuoteMatch[]>;
   setRouteField: (patch: Partial<RouteState>) => void;
   setCorridorKm: (km: number) => void;
   runRouteSearch: () => Promise<void>;
@@ -270,6 +278,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' });
   const [route, setRoute] = useState<RouteState>(DEFAULT_ROUTE);
   const [routeMatches, setRouteMatches] = useState<Map<string, RouteMatchResult>>(new Map());
+  // Every rate quote, fetched once a route search runs — used only to power the "quoted rate
+  // for this lane" table column (see routeQuotesByCompany below), not loaded on initial mount.
+  const [routeRateQuotes, setRouteRateQuotes] = useState<RateQuote[]>([]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
@@ -336,6 +347,26 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       };
     });
   }, [rawCompanies, routeMatches, route.originCoord, route.destCoord]);
+
+  // Rate quotes related to the searched route, grouped by company — powers the table's
+  // "quoted rate for this lane" column. Each entry carries its match tier: 'exact' when the
+  // quote's own origin/destination match the searched place text, 'same_country' when only
+  // the country lines up (a different city) — the table shows those too, but visibly flagged
+  // as approximate rather than passed off as the exact lane. Only populated during an active
+  // route search; empty otherwise so the column has nothing to show.
+  const routeQuotesByCompany = useMemo<Map<string, RouteQuoteMatch[]>>(() => {
+    const map = new Map<string, RouteQuoteMatch[]>();
+    if (!route.active) return map;
+    routeRateQuotes.forEach((q) => {
+      const tier = matchRouteQuoteTier(q, route.originText, route.destText);
+      if (!tier) return;
+      const entry = { quote: q, tier };
+      const group = map.get(q.company_id);
+      if (group) group.push(entry);
+      else map.set(q.company_id, [entry]);
+    });
+    return map;
+  }, [routeRateQuotes, route.active, route.originText, route.destText]);
 
   // Union of the preset list and whatever's actually in use, so staff can pick a capability
   // that's never been used yet instead of only ones already present in the data.
@@ -426,12 +457,13 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.project === 'all' || companyIdsByProject.get(filters.project)?.has(c.id)) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (!route.active || c.routeMatch) &&
+        (!filters.hasQuoteOnly || routeQuotesByCompany.has(c.id)) &&
         (search === '' ||
           c.name.toLowerCase().includes(search) ||
           c.city.toLowerCase().includes(search) ||
           c.description.toLowerCase().includes(search)),
     );
-  }, [companies, filters, route.active, companyIdsByProject]);
+  }, [companies, filters, route.active, companyIdsByProject, routeQuotesByCompany]);
 
   const mapFiltered = useMemo(
     () => (showHubsOnMap ? filtered : filtered.filter((c) => !c.hub_of)),
@@ -449,6 +481,13 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, [filtered, sort]);
 
   const duplicateCount = useMemo(() => companies.filter((c) => c.isDuplicate).length, [companies]);
+
+  // Among companies already on the route (routeMatch), how many have a quote for this lane —
+  // the denominator for the "has a quote" filter's checkbox label.
+  const hasQuoteCount = useMemo(
+    () => (route.active ? companies.filter((c) => c.routeMatch && routeQuotesByCompany.has(c.id)).length : 0),
+    [companies, route.active, routeQuotesByCompany],
+  );
 
   const selected = useMemo(() => (selectedId ? companies.find((c) => c.id === selectedId) ?? null : null), [companies, selectedId]);
 
@@ -547,7 +586,14 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     const { originText, destText, corridorKm } = route;
     if (!originText.trim() || !destText.trim()) return;
     setRoute((r) => ({ ...r, loading: true, error: '' }));
-    const [origin, dest] = await Promise.all([geocodePlace(originText), geocodePlace(destText)]);
+    // Best-effort alongside the geocoding calls — a failure here just means the quoted-rate
+    // column comes up empty, not that the whole search fails.
+    const [origin, dest, quotes] = await Promise.all([
+      geocodePlace(originText),
+      geocodePlace(destText),
+      api.fetchAllRateQuotes().catch(() => [] as RateQuote[]),
+    ]);
+    setRouteRateQuotes(quotes);
     if (!origin || !dest) {
       setRoute((r) => ({ ...r, loading: false, error: t.routeSearch.errorNoPlace }));
       return;
@@ -580,6 +626,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       error: '',
     }));
     setRouteMatches(new Map());
+    setRouteRateQuotes([]);
   }, []);
 
   // The corridor slider recomputes matches while a search is active — triggered from the setter
@@ -1283,7 +1330,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     allTrailerTypes,
     allCountriesServed,
     duplicateCount,
+    hasQuoteCount,
     route,
+    routeQuotesByCompany,
     setRouteField,
     setCorridorKm,
     runRouteSearch,
@@ -1385,7 +1434,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       allTrailerTypes,
       allCountriesServed,
       duplicateCount,
+      hasQuoteCount,
       route,
+      routeQuotesByCompany,
       setRouteField,
       setCorridorKm,
       runRouteSearch,

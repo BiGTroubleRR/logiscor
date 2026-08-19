@@ -3,7 +3,7 @@
 import { memo, useMemo, useState, type CSSProperties } from 'react';
 import { useCrm, type SortKey } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
-import { findSnippet, formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
+import { findSnippet, formatDate, formatDateTime, formatTag, tierColor, typeColor } from '@/lib/format';
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
@@ -54,7 +54,7 @@ function SortHeader({ label, sortKey }: { label: string; sortKey: SortKey }) {
 // changes reference when `companies`/`filtered`/`sorted` actually recompute, so this bails out
 // on anything else.
 const Row = memo(function Row({ c }: { c: CompanyView }) {
-  const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route, filters } = useCrm();
+  const { openDrawer, dismissDuplicate, deleteCompanyAction, setLabelColor, route, routeQuotesByCompany, filters } = useCrm();
   const { locale, t } = useLocale();
   const trTag = (label: string) => (locale === 'cs' ? translateOption(formatTag(label), 'cs') : formatTag(label));
   const score = c.strength_score;
@@ -201,6 +201,35 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
           t.table.dash
         )}
       </td>
+      {route.active && (
+        <td style={{ ...td, textAlign: 'right' }}>
+          {(() => {
+            const matches = routeQuotesByCompany.get(c.id) ?? [];
+            if (matches.length === 0) return <span style={{ color: '#cbd5e1' }}>{t.table.dash}</span>;
+            // Exact matches win when any exist; a same-country quote is only shown as a
+            // fallback, and always visibly flagged as approximate — never presented as if it
+            // were a quote for the exact searched lane.
+            const exact = matches.filter((m) => m.tier === 'exact');
+            const shown = exact.length ? exact : matches;
+            const isApprox = exact.length === 0;
+            const latest = shown.reduce((a, b) => (a.quote.created_at > b.quote.created_at ? a : b)).quote;
+            const tooltip = shown
+              .map((m) =>
+                m.quote.rate != null
+                  ? `${m.tier === 'same_country' ? t.table.quotedRateApprox : ''}${t.table.quotedRateOn(m.quote.rate, formatDate(m.quote.created_at, locale === 'cs' ? 'cs-CZ' : 'en-US'))}`
+                  : null,
+              )
+              .filter(Boolean)
+              .join('\n');
+            return (
+              <span style={{ fontWeight: 600, color: isApprox ? '#b45309' : '#0f172a', fontSize: 12 }} title={tooltip}>
+                {isApprox && '⚠ '}
+                {latest.rate != null ? `€${latest.rate.toLocaleString()}` : t.table.dash}
+              </span>
+            );
+          })()}
+        </td>
+      )}
       <td style={{ ...td, color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDateTime(c.updated_at, locale === 'cs' ? 'cs-CZ' : 'en-US')}</td>
       <td style={{ ...td, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
         <select
@@ -315,6 +344,7 @@ export default function CompanyTable() {
               <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>
               <th style={thStyleNoSort}>{t.table.colFlags}</th>
               <SortHeader label={distanceLabel} sortKey="distance_km" />
+              {route.active && <th style={thStyleNoSort}>{t.table.colQuotedForRoute}</th>}
               <SortHeader label={t.table.colLastModified} sortKey="updated_at" />
               <th style={thStyleNoSort}>{t.table.colColor}</th>
               <th style={thStyleRight} />

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getIdentity } from '@/lib/role';
 import { MissingServiceRoleKeyError } from '@/lib/supabase/admin-server';
-import { listRateQuotes, addRateQuote, updateRateQuote, deleteRateQuote } from '@/lib/supabase/rate-quotes';
+import { listRateQuotes, listAllRateQuotes, addRateQuote, updateRateQuote, deleteRateQuote } from '@/lib/supabase/rate-quotes';
 
 type RateQuoteBody = {
   companyId?: string;
@@ -26,11 +26,12 @@ export async function GET(request: Request) {
   const identity = await getIdentity();
   if (!identity) return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
 
+  // No "companyId" means "every quote" — used by the route search's quoted-rate column, which
+  // has to check quotes across every company, not just one (see fetchAllRateQuotes).
   const companyId = new URL(request.url).searchParams.get('companyId');
-  if (!companyId) return NextResponse.json({ error: 'Expected "companyId" query param.' }, { status: 400 });
 
   try {
-    const quotes = await listRateQuotes(companyId);
+    const quotes = companyId ? await listRateQuotes(companyId) : await listAllRateQuotes();
     return NextResponse.json({ quotes });
   } catch (e) {
     if (e instanceof MissingServiceRoleKeyError) {
