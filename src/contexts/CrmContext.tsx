@@ -10,7 +10,7 @@ import { matchCompanyAgainstRoute, matchRouteQuoteTier, type RouteMatchResult, t
 import type { LatLng } from '@/lib/geo';
 import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
-import { PRESET_COUNTRY_CODES } from '@/lib/countries-served';
+import { PRESET_COUNTRY_CODES, mergeCountriesServed } from '@/lib/countries-served';
 import { canonicalCountryName, resolveCountryCode } from '@/lib/countries';
 import { primaryButtonStyle } from '@/lib/styles';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
@@ -105,6 +105,11 @@ export type DrawerDraft = {
   activityNote: string;
   rateOrigin: string;
   rateDestination: string;
+  // Resolved from LocationAutocomplete's onSelect when the origin/destination were picked from
+  // a suggestion (see LocationAutocomplete.tsx) — null if typed freehand or never touched. Feeds
+  // the "auto-add to countries served" step in addRateQuote/saveRateQuoteEdit below.
+  rateOriginCountryCode: string | null;
+  rateDestinationCountryCode: string | null;
   rateTransportMode: string;
   rateLoadType: string;
   rateContainerType: string;
@@ -123,6 +128,8 @@ export type DrawerDraft = {
 const EMPTY_RATE_DRAFT_FIELDS = {
   rateOrigin: '',
   rateDestination: '',
+  rateOriginCountryCode: null,
+  rateDestinationCountryCode: null,
   rateTransportMode: '',
   rateLoadType: '',
   rateContainerType: '',
@@ -830,12 +837,24 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     );
     if (quote) {
       setRateQuotes((quotes) => [quote, ...quotes]);
+      // Auto-add any country resolved from an autocomplete pick on origin/destination — a
+      // true no-op (no network call) when there's nothing new, see mergeCountriesServed.
+      if (selected) {
+        const merged = mergeCountriesServed(selected.countries_served, [draft.rateOriginCountryCode, draft.rateDestinationCountryCode]);
+        if (merged.length !== selected.countries_served.length) {
+          const updatedCompany = await runMutation(() => api.saveCountriesServedApi(selectedId, merged));
+          if (updatedCompany) patchCompanyLocal(updatedCompany);
+        }
+      }
       setDraftState((d) => ({ ...d, ...EMPTY_RATE_DRAFT_FIELDS }));
     }
   }, [
     selectedId,
+    selected,
     draft.rateOrigin,
     draft.rateDestination,
+    draft.rateOriginCountryCode,
+    draft.rateDestinationCountryCode,
     draft.rateTransportMode,
     draft.rateLoadType,
     draft.rateContainerType,
@@ -860,6 +879,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       ...d,
       rateOrigin: quote.origin,
       rateDestination: quote.destination,
+      // An existing quote never captured a resolved country code — must not inherit a stale
+      // one left over from an earlier "add new quote" attempt on this same company.
+      rateOriginCountryCode: null,
+      rateDestinationCountryCode: null,
       rateTransportMode: quote.transport_mode,
       rateLoadType: quote.load_type,
       rateContainerType: quote.container_type,
@@ -905,12 +928,22 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     );
     if (updated) {
       setRateQuotes((quotes) => quotes.map((q) => (q.id === updated.id ? updated : q)));
+      if (selected) {
+        const merged = mergeCountriesServed(selected.countries_served, [draft.rateOriginCountryCode, draft.rateDestinationCountryCode]);
+        if (merged.length !== selected.countries_served.length) {
+          const updatedCompany = await runMutation(() => api.saveCountriesServedApi(selected.id, merged));
+          if (updatedCompany) patchCompanyLocal(updatedCompany);
+        }
+      }
       cancelEditRateQuote();
     }
   }, [
     editingRateId,
+    selected,
     draft.rateOrigin,
     draft.rateDestination,
+    draft.rateOriginCountryCode,
+    draft.rateDestinationCountryCode,
     draft.rateTransportMode,
     draft.rateLoadType,
     draft.rateContainerType,

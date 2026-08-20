@@ -20,3 +20,19 @@ export const PRESET_COUNTRY_CODES = [
   'BE',
   'LT',
 ];
+
+// Folds newly-resolved country codes (e.g. from a rate quote's geocoded origin/destination —
+// see addRateQuote/saveRateQuoteEdit in CrmContext.tsx) into a company's existing
+// countries_served, without ever producing a duplicate. Blank/null entries and codes already
+// present are silently skipped; existing order is preserved and genuinely new codes are
+// appended after it.
+export function mergeCountriesServed(existing: string[], toAdd: (string | null | undefined)[]): string[] {
+  const merged = [...existing];
+  for (const raw of toAdd) {
+    if (!raw) continue;
+    const code = raw.trim().toUpperCase();
+    if (!code || merged.includes(code)) continue;
+    merged.push(code);
+  }
+  return merged;
+}

@@ -5,6 +5,7 @@ import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
 import RfqEmailModal from './RfqEmailModal';
+import LocationAutocomplete from './LocationAutocomplete';
 import { activityTypeColor, countryNameFromCode, flagEmoji, formatDate, formatDateTime, formatTag, normalizeUrl, tierColor } from '@/lib/format';
 import FlagIcon from './FlagIcon';
 import CountryLabel from './CountryLabel';
@@ -111,6 +112,24 @@ export default function CompanyProfileContent() {
   } = useCrm();
   const { locale, t } = useLocale();
   const [showRfqModal, setShowRfqModal] = useState(false);
+  // Address search box for the Details edit form (Feature: address-driven lat/lng) — deliberately
+  // local, not part of editDraft/CrmContext: this text has no persisted purpose beyond the edit
+  // session, unlike every other editDraft field which maps 1:1 onto a Company column.
+  const [addressSearchText, setAddressSearchText] = useState('');
+  const [showAdvancedCoords, setShowAdvancedCoords] = useState(false);
+  // Seeded once per edit session (not on every editDraft change — city/region typing would
+  // otherwise fight the search box) from the company's current city/region/country, so
+  // confirming an unchanged location is a single pick, not a from-scratch search. Adjusted
+  // during render (React's documented pattern) rather than in an effect, same as
+  // CompanyTable.tsx's pagination reset — avoids a setState-in-effect extra render for no benefit.
+  const [prevEditingDetails, setPrevEditingDetails] = useState(editingDetails);
+  if (editingDetails !== prevEditingDetails) {
+    setPrevEditingDetails(editingDetails);
+    if (editingDetails && editDraft) {
+      setAddressSearchText([editDraft.city, editDraft.region, editDraft.country].filter(Boolean).join(', '));
+    }
+    setShowAdvancedCoords(false);
+  }
 
   if (!selected) return null;
 
@@ -396,6 +415,41 @@ export default function CompanyProfileContent() {
             editDraft && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
                 <LabeledInput label={t.drawer.name} value={editDraft.name} onChange={(v) => setEditField('name', v)} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.searchAddressLabel}</span>
+                    <LocationAutocomplete
+                      value={addressSearchText}
+                      onChange={setAddressSearchText}
+                      onSelect={(s) => {
+                        setEditField('lat', String(s.lat));
+                        setEditField('lng', String(s.lng));
+                        if (s.countryCode) setEditField('country', countryNameFromCode(s.countryCode));
+                      }}
+                      placeholder={t.drawer.searchAddressPlaceholder}
+                      inputStyle={editInputStyle}
+                    />
+                  </label>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                    {t.drawer.currentlyPinnedAt(
+                      Number.isFinite(parseFloat(editDraft.lat)) ? parseFloat(editDraft.lat) : selected.lat,
+                      Number.isFinite(parseFloat(editDraft.lng)) ? parseFloat(editDraft.lng) : selected.lng,
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedCoords((v) => !v)}
+                    style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left', width: 'fit-content' }}
+                  >
+                    {showAdvancedCoords ? t.drawer.hideAdvancedCoordinates : t.drawer.advancedEditCoordinates}
+                  </button>
+                  {showAdvancedCoords && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <LabeledInput label={t.drawer.latitude} value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />
+                      <LabeledInput label={t.drawer.longitude} value={editDraft.lng} onChange={(v) => setEditField('lng', v)} />
+                    </div>
+                  )}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.type}</span>
@@ -424,8 +478,6 @@ export default function CompanyProfileContent() {
                   </label>
                   <LabeledInput label={t.drawer.region} value={editDraft.region} onChange={(v) => setEditField('region', v)} />
                   <LabeledInput label={t.drawer.city} value={editDraft.city} onChange={(v) => setEditField('city', v)} />
-                  <LabeledInput label={t.drawer.latitude} value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />
-                  <LabeledInput label={t.drawer.longitude} value={editDraft.lng} onChange={(v) => setEditField('lng', v)} />
                   <LabeledInput label={t.drawer.website} value={editDraft.website} onChange={(v) => setEditField('website', v)} />
                   <LabeledInput label={t.drawer.phone} value={editDraft.phone} onChange={(v) => setEditField('phone', v)} />
                 </div>
@@ -633,19 +685,19 @@ export default function CompanyProfileContent() {
           <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.ratesReceived}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <input
-                type="text"
+              <LocationAutocomplete
                 value={draft.rateOrigin}
-                onChange={(e) => setDraft({ rateOrigin: e.target.value })}
+                onChange={(text) => setDraft({ rateOrigin: text, rateOriginCountryCode: null })}
+                onSelect={(s) => setDraft({ rateOriginCountryCode: s.countryCode })}
                 placeholder={t.drawer.originPlaceholder}
-                style={editInputStyle}
+                inputStyle={editInputStyle}
               />
-              <input
-                type="text"
+              <LocationAutocomplete
                 value={draft.rateDestination}
-                onChange={(e) => setDraft({ rateDestination: e.target.value })}
+                onChange={(text) => setDraft({ rateDestination: text, rateDestinationCountryCode: null })}
+                onSelect={(s) => setDraft({ rateDestinationCountryCode: s.countryCode })}
                 placeholder={t.drawer.destinationPlaceholder}
-                style={editInputStyle}
+                inputStyle={editInputStyle}
               />
             </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { tierColor } from '@/lib/format';
+import { debounce } from '@/lib/debounce';
 import type { CompanyView } from '@/types/company';
 import type * as LeafletNS from 'leaflet';
 
@@ -20,14 +21,6 @@ const LABEL_MIN_ZOOM = 12;
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function debounce<T extends (...args: never[]) => void>(fn: T, wait: number): T {
-  let timer: ReturnType<typeof setTimeout>;
-  return ((...args: never[]) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), wait);
-  }) as T;
 }
 
 // Bounds for the initial view, trimming the outer 10% of the lat/lng spread on each side first —

@@ -3,6 +3,7 @@
 import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { darkInputStyle, tealButtonStyle, outlineButtonStyle } from '@/lib/styles';
+import LocationAutocomplete from './LocationAutocomplete';
 
 export default function RouteSearchBar() {
   const { route, setRouteField, setCorridorKm, runRouteSearch, clearRoute } = useCrm();
@@ -24,20 +25,18 @@ export default function RouteSearchBar() {
       <span style={{ fontSize: 11, fontWeight: 600, color: '#5eead4', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
         {t.routeSearch.heading}
       </span>
-      <input
-        type="text"
+      <LocationAutocomplete
         value={route.originText}
-        onChange={(e) => setRouteField({ originText: e.target.value })}
+        onChange={(text) => setRouteField({ originText: text })}
         placeholder={t.routeSearch.originPlaceholder}
-        style={{ ...darkInputStyle, width: 150 }}
+        inputStyle={{ ...darkInputStyle, width: 150 }}
       />
       <span style={{ color: '#64748b' }}>→</span>
-      <input
-        type="text"
+      <LocationAutocomplete
         value={route.destText}
-        onChange={(e) => setRouteField({ destText: e.target.value })}
+        onChange={(text) => setRouteField({ destText: text })}
         placeholder={t.routeSearch.destinationPlaceholder}
-        style={{ ...darkInputStyle, width: 150 }}
+        inputStyle={{ ...darkInputStyle, width: 150 }}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#cbd5e1' }}>
         <span>{t.routeSearch.corridor(route.corridorKm)}</span>
