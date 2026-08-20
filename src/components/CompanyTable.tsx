@@ -7,6 +7,7 @@ import { findSnippet, formatDate, formatDateTime, formatTag, tierColor, typeColo
 import { ROW_COLORS } from '@/lib/row-colors';
 import { translateOption } from '@/lib/i18n/option-labels';
 import { getEmailQuality } from '@/lib/email-quality';
+import { hasPreciseAddress } from '@/lib/address-quality';
 import { extractLaneCodes } from '@/lib/lane-codes';
 import FlagIcon from './FlagIcon';
 import CountryLabel from './CountryLabel';
@@ -19,6 +20,11 @@ function emailBadge(c: CompanyView, t: Dict): { label: string; title: string; bg
   if (quality === 'missing') return { label: t.table.noEmail, title: t.table.noEmailHint, bg: '#fee2e2', fg: '#991b1b' };
   if (quality === 'incomplete') return { label: t.table.incompleteInfo, title: t.table.incompleteInfoHint, bg: '#3f3f46', fg: '#fff' };
   return null;
+}
+
+function addressBadge(c: CompanyView, t: Dict): { label: string; title: string; bg: string; fg: string } | null {
+  if (hasPreciseAddress(c)) return null;
+  return { label: t.table.addressNotPrecise, title: t.table.addressNotPreciseHint, bg: '#e0f2fe', fg: '#075985' };
 }
 
 const thStyle: CSSProperties = {
@@ -69,6 +75,7 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
   const visibleRouteCodes = routeCodes.slice(0, 5);
   const extraRouteCodeCount = routeCodes.length - 5;
   const emailFlag = emailBadge(c, t);
+  const addressFlag = addressBadge(c, t);
   const noteMatch = findSnippet(c.description, filters.search);
 
   const rowStyle: CSSProperties = c.isDuplicate
@@ -109,6 +116,14 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
               style={{ background: emailFlag.bg, color: emailFlag.fg, fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}
             >
               {emailFlag.label}
+            </span>
+          )}
+          {addressFlag && (
+            <span
+              title={addressFlag.title}
+              style={{ background: addressFlag.bg, color: addressFlag.fg, fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}
+            >
+              {addressFlag.label}
             </span>
           )}
         </div>

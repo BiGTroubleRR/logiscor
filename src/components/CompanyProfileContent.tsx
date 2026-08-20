@@ -387,6 +387,11 @@ export default function CompanyProfileContent() {
           {!editingDetails ? (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
+                <Field
+                  label={t.drawer.address}
+                  value={[selected.city, selected.region, selected.country].filter(Boolean).join(', ') || t.drawer.notRecorded}
+                  span2
+                />
                 <Field label={t.drawer.region} value={selected.region || t.drawer.notRecorded} />
                 <Field label={t.drawer.coordinates} value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
                 <Field label={t.drawer.lastUpdated} value={formatDateTime(selected.updated_at, dateLocale)} />
