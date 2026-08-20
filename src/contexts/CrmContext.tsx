@@ -627,7 +627,10 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     }));
     setRouteMatches(new Map());
     setRouteRateQuotes([]);
-  }, []);
+    // hasQuoteOnly's checkbox only renders while a route search is active (see FilterBar) — left
+    // on, it would filter the whole list to nothing with no visible control to undo it.
+    setFilters({ hasQuoteOnly: false });
+  }, [setFilters]);
 
   // The corridor slider recomputes matches while a search is active — triggered from the setter
   // itself rather than an effect, so there's no synchronous setState cascade. Origin/dest changes
