@@ -5,6 +5,7 @@ import { useCrm } from '@/contexts/CrmContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import { editInputStyle, primaryButtonStyle } from '@/lib/styles';
 import { formatDate } from '@/lib/format';
+import { downloadProjectPartnersXlsx } from '@/lib/xlsx-export';
 import type { ProjectStatus } from '@/types/project';
 
 const sectionLabelStyle = { fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.03em', marginBottom: 8 };
@@ -213,7 +214,22 @@ export default function ProjectDrawer() {
           {/* Companies — text-search picker rather than a dropdown, since there can be
               hundreds of companies (unlike the small option lists elsewhere in the app). */}
           <div>
-            <div style={sectionLabelStyle}>{t.projects.companies}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={sectionLabelStyle}>{t.projects.companies}</span>
+              {assignedCompanies.length > 0 && (
+                <button
+                  onClick={() =>
+                    downloadProjectPartnersXlsx(
+                      selectedProject,
+                      assignedCompanies.map((c) => ({ company: c, link: linkFor(c.id) })),
+                    )
+                  }
+                  style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  {t.projects.exportPartners}
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
               {assignedCompanies.map((c) => {
                 const link = linkFor(c.id);

@@ -368,6 +368,7 @@ export const cs: Dict = {
     companies: 'Společnosti',
     noCompaniesAssigned: 'Zatím nejsou přiřazeny žádné společnosti.',
     searchCompaniesPlaceholder: 'Vyhledat společnosti k přidání...',
+    exportPartners: '⬇ Export',
     quotedRate: 'Nabídnutá cena',
     quotedRatePlaceholder: 'např. 2500',
     remarks: 'Poznámky',

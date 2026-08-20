@@ -330,6 +330,7 @@ export const en = {
     companies: 'Companies',
     noCompaniesAssigned: 'No companies assigned yet.',
     searchCompaniesPlaceholder: 'Search companies to add...',
+    exportPartners: '⬇ Export',
     quotedRate: 'Quoted rate',
     quotedRatePlaceholder: 'e.g. 2500',
     remarks: 'Remarks',
