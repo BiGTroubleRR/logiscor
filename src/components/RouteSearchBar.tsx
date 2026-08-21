@@ -47,7 +47,8 @@ export default function RouteSearchBar() {
           step={10}
           value={route.corridorKm}
           onChange={(e) => setCorridorKm(Number(e.target.value))}
-          style={{ width: 110 }}
+          className="lgs-range"
+          style={{ width: 110, ['--range-fill' as string]: `${((route.corridorKm - 10) / (300 - 10)) * 100}%` }}
         />
       </div>
       <button onClick={runRouteSearch} style={tealButtonStyle}>

@@ -12,6 +12,7 @@ import { PRESET_TRAILER_TYPES } from '@/lib/trailer-types';
 import { PRESET_CAPABILITIES } from '@/lib/capabilities';
 import { PRESET_COUNTRY_CODES, mergeCountriesServed } from '@/lib/countries-served';
 import { canonicalCountryName, resolveCountryCode } from '@/lib/countries';
+import { isManufacturerOnly } from '@/lib/company-classify';
 import { primaryButtonStyle } from '@/lib/styles';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
@@ -28,6 +29,10 @@ export type FilterState = {
   // Only meaningful during an active route search (see routeQuotesByCompany) — has no effect
   // otherwise, since there's no searched lane to have a quote for.
   hasQuoteOnly: boolean;
+  // Off by default: pure manufacturers are hidden from the company list entirely (procurement
+  // works with carriers day to day) — checking this flips the list to show ONLY manufacturers,
+  // rather than mixing them in.
+  manufacturersOnly: boolean;
   search: string;
 };
 
@@ -40,6 +45,7 @@ const DEFAULT_FILTERS: FilterState = {
   project: 'all',
   duplicatesOnly: false,
   hasQuoteOnly: false,
+  manufacturersOnly: false,
   search: '',
 };
 
@@ -205,6 +211,7 @@ type CrmContextValue = {
   allTrailerTypes: string[];
   allCountriesServed: string[];
   duplicateCount: number;
+  manufacturerCount: number;
   hasQuoteCount: number;
 
   route: RouteState;
@@ -463,6 +470,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
         (filters.project === 'all' || companyIdsByProject.get(filters.project)?.has(c.id)) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
+        (filters.manufacturersOnly ? isManufacturerOnly(c) : !isManufacturerOnly(c)) &&
         (!route.active || c.routeMatch) &&
         (!filters.hasQuoteOnly || routeQuotesByCompany.has(c.id)) &&
         (search === '' ||
@@ -488,6 +496,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   }, [filtered, sort]);
 
   const duplicateCount = useMemo(() => companies.filter((c) => c.isDuplicate).length, [companies]);
+  const manufacturerCount = useMemo(() => companies.filter(isManufacturerOnly).length, [companies]);
 
   // Among companies already on the route (routeMatch), how many have a quote for this lane —
   // the denominator for the "has a quote" filter's checkbox label.
@@ -1366,6 +1375,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     allTrailerTypes,
     allCountriesServed,
     duplicateCount,
+    manufacturerCount,
     hasQuoteCount,
     route,
     routeQuotesByCompany,
@@ -1470,6 +1480,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       allTrailerTypes,
       allCountriesServed,
       duplicateCount,
+      manufacturerCount,
       hasQuoteCount,
       route,
       routeQuotesByCompany,

@@ -37,6 +37,61 @@ button {
   color: #94a3b8;
 }
 
+/* Custom look for <input type="range"> — the bare native slider (thin grey track, tiny
+   default-blue thumb) reads especially poorly on the dark Route Search bar. The filled portion
+   left of the thumb is done differently per engine: Chrome/Safari have no equivalent of
+   ::-moz-range-progress, so it's faked with a background gradient split at the --range-fill
+   custom property the component sets inline from the current value. */
+input[type='range'].lgs-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #2dd4bf 0%,
+    #2dd4bf var(--range-fill, 50%),
+    #334155 var(--range-fill, 50%),
+    #334155 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range'].lgs-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.5);
+  cursor: pointer;
+}
+
+input[type='range'].lgs-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: #334155;
+}
+
+input[type='range'].lgs-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: #2dd4bf;
+}
+
+input[type='range'].lgs-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.5);
+  cursor: pointer;
+}
+
 /* MapView.tsx's carrier markers are Leaflet divIcons — override the plugin's default white
    box/border so only our own circle (drawn via inline style in the icon's HTML) shows. */
 .leaflet-div-icon.lgs-marker-icon {

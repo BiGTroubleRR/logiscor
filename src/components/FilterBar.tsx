@@ -23,6 +23,7 @@ export default function FilterBar() {
     trailerTypeOptions,
     projectOptions,
     duplicateCount,
+    manufacturerCount,
     hasQuoteCount,
     filtered,
     addCompany,
@@ -125,6 +126,13 @@ export default function FilterBar() {
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
         <input type="checkbox" checked={filters.duplicatesOnly} onChange={() => setFilters({ duplicatesOnly: !filters.duplicatesOnly })} />
         {t.filterBar.possibleDuplicatesOnly(duplicateCount)}
+      </label>
+
+      {/* Off by default — pure manufacturers are hidden from the list entirely so staff aren't
+          nudged into contacting them; this is the only way to see them at all. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', border: '1px solid #cbd5e1', borderRadius: 6, padding: '7px 10px', cursor: 'pointer' }}>
+        <input type="checkbox" checked={filters.manufacturersOnly} onChange={() => setFilters({ manufacturersOnly: !filters.manufacturersOnly })} />
+        {t.filterBar.manufacturersOnly(manufacturerCount)}
       </label>
 
       {/* Only meaningful with a searched lane to have a quote for — hidden the rest of the time
