@@ -95,6 +95,7 @@ export default function CompanyProfileContent() {
     addCountryServed,
     removeCountryServed,
     projects,
+    projectLinks,
     selectedProjectIds,
     addCompanyToSelectedProject,
     removeCompanyFromSelectedProject,
@@ -151,6 +152,25 @@ export default function CompanyProfileContent() {
   const availableCountryChoices = allCountriesServed.filter((code) => !selected.countries_served.includes(code));
   const ALL_COMPANY_TYPES: CompanyType[] = ['carrier', 'manufacturer', 'port', 'warehouse'];
   const availableCompanyTypeChoices = ALL_COMPANY_TYPES.filter((ct) => !selected.types.includes(ct));
+
+  // A quoted_rate entered on a project's company link (see ProjectDrawer.tsx) is that same
+  // company being asked for a price — worth showing here as a received rate too, without a
+  // second source of truth to keep in sync: this reads project_companies directly rather than
+  // writing a duplicate rate_quotes row, so it can never drift from what's on the project.
+  const projectRateEntries = projectLinks
+    .filter((l) => l.company_id === selected.id && l.quoted_rate != null)
+    .map((l) => ({
+      kind: 'project' as const,
+      id: `project-${l.id}`,
+      created_at: l.created_at,
+      quotedRate: l.quoted_rate as number,
+      remarks: l.remarks,
+      projectName: projects.find((p) => p.id === l.project_id)?.name ?? t.drawer.dash,
+    }));
+  const displayRates = [
+    ...rateQuotes.map((q) => ({ kind: 'quote' as const, id: q.id, created_at: q.created_at, quote: q })),
+    ...projectRateEntries,
+  ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 
   return (
     <>
@@ -922,7 +942,27 @@ export default function CompanyProfileContent() {
               <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
             ) : (
               <>
-                {rateQuotes.map((quote) => {
+                {displayRates.map((entry) => {
+                  if (entry.kind === 'project') {
+                    return (
+                      <div key={entry.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            📁 {entry.projectName}
+                            <span style={{ background: '#eff6ff', color: '#1d4ed8', fontSize: 10, padding: '2px 6px', borderRadius: 999, fontWeight: 600 }}>
+                              {t.drawer.fromProjectBadge}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                            <span style={{ fontWeight: 600, color: '#0f172a' }}>€{entry.quotedRate.toLocaleString()}</span>
+                          </div>
+                          {entry.remarks && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{entry.remarks}</div>}
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{formatDate(entry.created_at, dateLocale)}</div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const quote = entry.quote;
                   const isExpired = !!quote.expires_at && quote.expires_at < todayIso;
                   const isEditing = editingRateId === quote.id;
                   return (
@@ -991,7 +1031,7 @@ export default function CompanyProfileContent() {
                     </div>
                   );
                 })}
-                {rateQuotes.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noRatesYet}</div>}
+                {displayRates.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noRatesYet}</div>}
               </>
             )}
           </div>

@@ -47,13 +47,25 @@ export default function FilterBar() {
         alignItems: 'center',
       }}
     >
-      <input
-        type="text"
-        value={filters.search}
-        onChange={(e) => setFilters({ search: e.target.value })}
-        placeholder={t.filterBar.searchPlaceholder}
-        style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 10px', fontSize: 13, width: 190 }}
-      />
+      <div style={{ position: 'relative', width: 190 }}>
+        <input
+          type="text"
+          value={filters.search}
+          onChange={(e) => setFilters({ search: e.target.value })}
+          placeholder={t.filterBar.searchPlaceholder}
+          style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 26px 8px 10px', fontSize: 13, width: '100%' }}
+        />
+        {filters.search && (
+          <button
+            onClick={() => setFilters({ search: '' })}
+            title={t.filterBar.clearSearch}
+            aria-label={t.filterBar.clearSearch}
+            style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14, padding: 4, lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       <select value={filters.type} onChange={(e) => setFilters({ type: e.target.value })} style={lightSelectStyle}>
         <option value="all">{t.filterBar.allTypes}</option>

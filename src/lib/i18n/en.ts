@@ -33,6 +33,7 @@ export const en = {
 
   filterBar: {
     searchPlaceholder: 'Search name, city, or notes...',
+    clearSearch: 'Clear search',
     allTypes: 'All types',
     allCountries: 'All countries',
     allRegions: 'All regions',
@@ -89,6 +90,10 @@ export const en = {
     colFlags: 'Routes Served',
     colLastModified: 'Last Modified',
     colColor: 'Color',
+    carriersHeading: (n: number) => `Carriers (${n})`,
+    manufacturersHeading: (n: number) => `Manufacturers (${n})`,
+    showSection: 'Show',
+    hideSection: 'Hide',
     genericEmail: 'Generic email',
     genericEmailHint: 'Generic/role-based address (info@, sales@, ...) — may not reach a real contact.',
     noEmail: 'No email',
@@ -188,6 +193,7 @@ export const en = {
     noActivityYet: 'No activity logged yet.',
 
     ratesReceived: 'Rates Received',
+    fromProjectBadge: 'From project',
     originPlaceholder: 'Origin',
     destinationPlaceholder: 'Destination',
     transportMode: 'Transport Mode',

@@ -27,6 +27,14 @@ function addressBadge(c: CompanyView, t: Dict): { label: string; title: string; 
   return { label: t.table.addressNotPrecise, title: t.table.addressNotPreciseHint, bg: '#e0f2fe', fg: '#075985' };
 }
 
+// A company that only manufactures (no carrier role) goes in the secondary Manufacturers
+// table — one that's also a carrier (or a port/warehouse, neither of which is a manufacturer)
+// stays in the primary list, since procurement's day-to-day work is finding carriers.
+function isManufacturerOnly(c: CompanyView): boolean {
+  const types = c.types.length ? c.types : [c.type];
+  return types.includes('manufacturer') && !types.includes('carrier');
+}
+
 const thStyle: CSSProperties = {
   padding: '10px 14px',
   textAlign: 'left',
@@ -323,10 +331,23 @@ function PaginationBar({ page, totalPages, total, onPageChange }: { page: number
   );
 }
 
-export default function CompanyTable() {
-  const { sorted, route, filters, sort } = useCrm();
+// One table's worth of rows plus its own pagination — used twice (Carriers, Manufacturers)
+// so each list pages independently rather than sharing one offset.
+function TableSection({
+  title,
+  rows,
+  collapsible,
+  defaultCollapsed,
+}: {
+  title: string;
+  rows: CompanyView[];
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+}) {
+  const { route, filters, sort } = useCrm();
   const { t } = useLocale();
   const distanceLabel = route.active ? t.table.colDistanceRoute : t.table.colDistance;
+  const [collapsed, setCollapsed] = useState(!!defaultCollapsed);
 
   const [page, setPage] = useState(1);
   // Resets to page 1 whenever the filter/sort selection changes — otherwise a narrower result
@@ -341,42 +362,78 @@ export default function CompanyTable() {
     setPage(1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const clampedPage = Math.min(page, totalPages);
-  const pageRows = useMemo(() => sorted.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE), [sorted, clampedPage]);
+  const pageRows = useMemo(() => rows.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE), [rows, clampedPage]);
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
-      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflowX: 'auto' }}>
-        <table style={{ width: '100%', minWidth: 1000, borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <SortHeader label={t.table.colCompany} sortKey="name" />
-              <SortHeader label={t.table.colType} sortKey="type" />
-              <SortHeader label={t.table.colRegionCity} sortKey="region" />
-              <th style={thStyleNoSort}>{t.table.colCapabilities}</th>
-              <SortHeader label={t.table.colStrength} sortKey="strength_score" />
-              <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>
-              <th style={thStyleNoSort}>{t.table.colFlags}</th>
-              <SortHeader label={distanceLabel} sortKey="distance_km" />
-              {route.active && <th style={thStyleNoSort}>{t.table.colQuotedForRoute}</th>}
-              <SortHeader label={t.table.colLastModified} sortKey="updated_at" />
-              <th style={thStyleNoSort}>{t.table.colColor}</th>
-              <th style={thStyleRight} />
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((c) => (
-              <Row key={c.id} c={c} />
-            ))}
-          </tbody>
-        </table>
-        {sorted.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{t.table.noMatches}</div>
-        ) : (
-          <PaginationBar page={clampedPage} totalPages={totalPages} total={sorted.length} onPageChange={setPage} />
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}>
+      <div
+        onClick={collapsible ? () => setCollapsed((v) => !v) : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 14px',
+          borderBottom: collapsed ? 'none' : '1px solid #e2e8f0',
+          background: '#f8fafc',
+          cursor: collapsible ? 'pointer' : 'default',
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{title}</span>
+        {collapsible && (
+          <span style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>{collapsed ? t.table.showSection : t.table.hideSection}</span>
         )}
       </div>
+      {!collapsed && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 1000, borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <SortHeader label={t.table.colCompany} sortKey="name" />
+                <SortHeader label={t.table.colType} sortKey="type" />
+                <SortHeader label={t.table.colRegionCity} sortKey="region" />
+                <th style={thStyleNoSort}>{t.table.colCapabilities}</th>
+                <SortHeader label={t.table.colStrength} sortKey="strength_score" />
+                <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>
+                <th style={thStyleNoSort}>{t.table.colFlags}</th>
+                <SortHeader label={distanceLabel} sortKey="distance_km" />
+                {route.active && <th style={thStyleNoSort}>{t.table.colQuotedForRoute}</th>}
+                <SortHeader label={t.table.colLastModified} sortKey="updated_at" />
+                <th style={thStyleNoSort}>{t.table.colColor}</th>
+                <th style={thStyleRight} />
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((c) => (
+                <Row key={c.id} c={c} />
+              ))}
+            </tbody>
+          </table>
+          {rows.length === 0 ? (
+            <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>{t.table.noMatches}</div>
+          ) : (
+            <PaginationBar page={clampedPage} totalPages={totalPages} total={rows.length} onPageChange={setPage} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function CompanyTable() {
+  const { sorted } = useCrm();
+  const { t } = useLocale();
+
+  const carrierRows = useMemo(() => sorted.filter((c) => !isManufacturerOnly(c)), [sorted]);
+  const manufacturerRows = useMemo(() => sorted.filter(isManufacturerOnly), [sorted]);
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <TableSection title={t.table.carriersHeading(carrierRows.length)} rows={carrierRows} />
+      {manufacturerRows.length > 0 && (
+        <TableSection title={t.table.manufacturersHeading(manufacturerRows.length)} rows={manufacturerRows} collapsible defaultCollapsed />
+      )}
     </div>
   );
 }

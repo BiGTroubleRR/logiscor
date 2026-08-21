@@ -40,6 +40,7 @@ export const cs: Dict = {
 
   filterBar: {
     searchPlaceholder: 'Hledat název, město nebo poznámky...',
+    clearSearch: 'Vymazat hledání',
     allTypes: 'Všechny typy',
     allCountries: 'Všechny země',
     allRegions: 'Všechny regiony',
@@ -96,6 +97,10 @@ export const cs: Dict = {
     colFlags: 'Obsluhované trasy',
     colLastModified: 'Poslední úprava',
     colColor: 'Barva',
+    carriersHeading: (n) => `Dopravci (${n})`,
+    manufacturersHeading: (n) => `Výrobci (${n})`,
+    showSection: 'Zobrazit',
+    hideSection: 'Skrýt',
     genericEmail: 'Obecný e-mail',
     genericEmailHint: 'Obecná/skupinová adresa (info@, sales@, ...) — nemusí vést ke skutečné osobě.',
     noEmail: 'Bez e-mailu',
@@ -199,6 +204,7 @@ export const cs: Dict = {
     noActivityYet: 'Zatím žádná zaznamenaná aktivita.',
 
     ratesReceived: 'Přijaté sazby',
+    fromProjectBadge: 'Z projektu',
     originPlaceholder: 'Výchozí bod',
     destinationPlaceholder: 'Cíl',
     transportMode: 'Druh přepravy',
