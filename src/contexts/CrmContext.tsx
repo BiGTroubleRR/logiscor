@@ -13,6 +13,9 @@ import { PRESET_CAPABILITIES } from '@/lib/capabilities';
 import { PRESET_COUNTRY_CODES, mergeCountriesServed } from '@/lib/countries-served';
 import { canonicalCountryName, resolveCountryCode } from '@/lib/countries';
 import { isManufacturerOnly } from '@/lib/company-classify';
+import { getEmailQuality, type EmailQuality } from '@/lib/email-quality';
+import { hasPreciseAddress } from '@/lib/address-quality';
+import { tierColor, type TierKey } from '@/lib/format';
 import { primaryButtonStyle } from '@/lib/styles';
 import type { ImportedCompanyRow, ImportRowError } from '@/lib/company-import';
 import * as api from '@/lib/api-client';
@@ -33,6 +36,13 @@ export type FilterState = {
   // rather than mixing them in.
   manufacturersOnly: boolean;
   search: string;
+  // Advanced filters — hidden behind FilterBar's "Advanced filters" toggle since Search/
+  // Country/Capability cover the common case; these are for narrower, less frequent lookups.
+  ndaStatus: 'all' | 'received' | 'not_received';
+  strengthTier: 'all' | TierKey;
+  emailQuality: 'all' | EmailQuality;
+  labelColor: string;
+  addressImpreciseOnly: boolean;
 };
 
 const DEFAULT_FILTERS: FilterState = {
@@ -45,6 +55,11 @@ const DEFAULT_FILTERS: FilterState = {
   hasQuoteOnly: false,
   manufacturersOnly: false,
   search: '',
+  ndaStatus: 'all',
+  strengthTier: 'all',
+  emailQuality: 'all',
+  labelColor: 'all',
+  addressImpreciseOnly: false,
 };
 
 export type SortKey = 'name' | 'type' | 'country' | 'city' | 'strength_score' | 'distance_km' | 'updated_at';
@@ -469,6 +484,11 @@ export function CrmProvider({ children }: { children: ReactNode }) {
         (filters.project === 'all' || companyIdsByProject.get(filters.project)?.has(c.id)) &&
         (!filters.duplicatesOnly || c.isDuplicate) &&
         (filters.manufacturersOnly ? isManufacturerOnly(c) : !isManufacturerOnly(c)) &&
+        (filters.ndaStatus === 'all' || (filters.ndaStatus === 'received' ? c.nda_received : !c.nda_received)) &&
+        (filters.strengthTier === 'all' || tierColor(c.strength_score).tierKey === filters.strengthTier) &&
+        (filters.emailQuality === 'all' || getEmailQuality(c) === filters.emailQuality) &&
+        (filters.labelColor === 'all' || c.label_color === filters.labelColor) &&
+        (!filters.addressImpreciseOnly || !hasPreciseAddress(c)) &&
         (!route.active || c.routeMatch) &&
         (!filters.hasQuoteOnly || routeQuotesByCompany.has(c.id)) &&
         (search === '' ||
