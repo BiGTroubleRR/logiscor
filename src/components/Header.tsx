@@ -8,7 +8,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 const tabBase = { border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 13, fontWeight: 600 as const, cursor: 'pointer' as const };
 
 export default function Header() {
-  const { view, setView, openBinView, filtered, companies, loading, identity } = useCrm();
+  const { view, setView, openBinView, filtered, companies, manufacturerCount, filters, loading, identity } = useCrm();
   const { user, signOut } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const router = useRouter();
@@ -86,8 +86,20 @@ export default function Header() {
 
       <div style={{ flex: 1 }} />
 
-      <div style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>
-        {loading ? t.header.loading : t.header.countOf(filtered.length, companies.length)}
+      <div style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.3 }}>
+        {loading ? (
+          <span>{t.header.loading}</span>
+        ) : filters.manufacturersOnly ? (
+          <>
+            <span>{t.header.countOfManufacturers(filtered.length, manufacturerCount)}</span>
+            <span style={{ fontSize: 11 }}>{t.header.totalCarriers(companies.length - manufacturerCount)}</span>
+          </>
+        ) : (
+          <>
+            <span>{t.header.countOfCarriers(filtered.length, companies.length - manufacturerCount)}</span>
+            <span style={{ fontSize: 11 }}>{t.header.totalManufacturers(manufacturerCount)}</span>
+          </>
+        )}
       </div>
 
       <div style={{ display: 'flex', background: '#1e293b', borderRadius: 8, padding: 3, gap: 2, flex: '0 0 auto' }}>

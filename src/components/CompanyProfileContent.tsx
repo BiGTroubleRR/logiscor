@@ -26,7 +26,10 @@ import {
 } from '@/lib/rate-quote-options';
 
 const rateSectionLabelStyle = { fontSize: 11, color: '#94a3b8', marginBottom: 3 } as const;
+const sectionHeaderStyle = { fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 } as const;
 const OTHER_SENTINEL = '__other__';
+
+type TabKey = 'details' | 'rates' | 'nda' | 'other';
 
 // A <select> from a preset list, with a trailing "Other" option that swaps in a free-text
 // input — for the couple of fields (Container Type, Capacity) the taxonomy explicitly
@@ -74,6 +77,7 @@ export default function CompanyProfileContent() {
     draft,
     setDraft,
     saveStrength,
+    saveNda,
     dismissDuplicate,
     restoreDuplicate,
     editingDetails,
@@ -113,21 +117,30 @@ export default function CompanyProfileContent() {
   } = useCrm();
   const { locale, t } = useLocale();
   const [showRfqModal, setShowRfqModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>('details');
+  // Switching to a different company while the profile is open shouldn't leave you stranded on
+  // whatever tab the previous company happened to be on — reset to Details, same render-time
+  // "adjust state when a prop changes" pattern used elsewhere in this file.
+  const [prevSelectedId, setPrevSelectedId] = useState(selected?.id);
+  if (selected?.id !== prevSelectedId) {
+    setPrevSelectedId(selected?.id);
+    setActiveTab('details');
+  }
   // Address search box for the Details edit form (Feature: address-driven lat/lng) — deliberately
   // local, not part of editDraft/CrmContext: this text has no persisted purpose beyond the edit
   // session, unlike every other editDraft field which maps 1:1 onto a Company column.
   const [addressSearchText, setAddressSearchText] = useState('');
   const [showAdvancedCoords, setShowAdvancedCoords] = useState(false);
-  // Seeded once per edit session (not on every editDraft change — city/region typing would
-  // otherwise fight the search box) from the company's current city/region/country, so
-  // confirming an unchanged location is a single pick, not a from-scratch search. Adjusted
-  // during render (React's documented pattern) rather than in an effect, same as
-  // CompanyTable.tsx's pagination reset — avoids a setState-in-effect extra render for no benefit.
+  // Seeded once per edit session (not on every editDraft change — city typing would otherwise
+  // fight the search box) from the company's current city/country, so confirming an unchanged
+  // location is a single pick, not a from-scratch search. Adjusted during render (React's
+  // documented pattern) rather than in an effect, same as CompanyTable.tsx's pagination reset —
+  // avoids a setState-in-effect extra render for no benefit.
   const [prevEditingDetails, setPrevEditingDetails] = useState(editingDetails);
   if (editingDetails !== prevEditingDetails) {
     setPrevEditingDetails(editingDetails);
     if (editingDetails && editDraft) {
-      setAddressSearchText([editDraft.city, editDraft.region, editDraft.country].filter(Boolean).join(', '));
+      setAddressSearchText([editDraft.city, editDraft.country].filter(Boolean).join(', '));
     }
     setShowAdvancedCoords(false);
   }
@@ -171,6 +184,13 @@ export default function CompanyProfileContent() {
     ...rateQuotes.map((q) => ({ kind: 'quote' as const, id: q.id, created_at: q.created_at, quote: q })),
     ...projectRateEntries,
   ].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  const TABS: { key: TabKey; label: string }[] = [
+    { key: 'details', label: t.drawer.tabDetails },
+    { key: 'rates', label: t.drawer.tabRates },
+    { key: 'nda', label: t.drawer.tabNda },
+    { key: 'other', label: t.drawer.tabOther },
+  ];
 
   return (
     <>
@@ -235,806 +255,877 @@ export default function CompanyProfileContent() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {/* Strength Score */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t.drawer.strengthScore}</span>
-            <span style={{ background: tier.bg, color: tier.fg, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>{t.tiers[tier.tierKey]}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
-            <div style={{ fontSize: 34, fontWeight: 700, color: tier.bar }}>{draft.strength}</div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={draft.strength}
-              onChange={(e) => setDraft({ strength: Number(e.target.value) })}
+      <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* Pinned above the tabs — Strength Score and any duplicate-warning banner stay
+            visible no matter which tab is active. */}
+        <div style={{ padding: '20px 20px 0', display: 'flex', flexDirection: 'column', gap: 22 }}>
+          {/* Strength Score */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t.drawer.strengthScore}</span>
+              <span style={{ background: tier.bg, color: tier.fg, fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>{t.tiers[tier.tierKey]}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
+              <div style={{ fontSize: 34, fontWeight: 700, color: tier.bar }}>{draft.strength}</div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={draft.strength}
+                onChange={(e) => setDraft({ strength: Number(e.target.value) })}
+                disabled={!isManager}
+                style={{ flex: 1 }}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{scoreHint}</div>
+            <textarea
+              value={draft.rationale}
+              onChange={(e) => setDraft({ rationale: e.target.value })}
               disabled={!isManager}
-              style={{ flex: 1 }}
+              placeholder={t.drawer.rationalePlaceholder}
+              style={{ width: '100%', marginTop: 10, border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, fontSize: 13, minHeight: 60, resize: 'vertical' }}
             />
-          </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{scoreHint}</div>
-          <textarea
-            value={draft.rationale}
-            onChange={(e) => setDraft({ rationale: e.target.value })}
-            disabled={!isManager}
-            placeholder={t.drawer.rationalePlaceholder}
-            style={{ width: '100%', marginTop: 10, border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, fontSize: 13, minHeight: 60, resize: 'vertical' }}
-          />
-          {!isManager && <div style={{ fontSize: 11, color: '#b45309', marginTop: 6 }}>{t.drawer.managerOnlyScore}</div>}
-          {isManager && (
-            <button onClick={saveStrength} style={{ ...primaryButtonStyle, marginTop: 8 }}>
-              {t.drawer.saveScore}
-            </button>
-          )}
-        </div>
-
-        {/* Duplicate warning / dismissed notice */}
-        {selected.isDuplicate && (
-          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#991b1b' }}>{t.drawer.possibleDuplicateOf(selected.duplicateMatches.length)}</span>
-              <button onClick={() => dismissDuplicate(selected.id)} style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
-                {t.drawer.notADuplicate}
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {selected.duplicateMatches.map((dup) => (
-                <div key={dup.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <DuplicateLink id={dup.id} name={dup.name} />
-                  <button
-                    onClick={() => mergeCompaniesAction(selected.id, dup.id)}
-                    title={t.drawer.mergeIntoThis(dup.name)}
-                    style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 11, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer', padding: 0, flex: '0 0 auto' }}
-                  >
-                    {t.drawer.merge}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {selected.duplicate_dismissed && selected.hasDuplicateMatch && (
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>{t.drawer.duplicateFlagDismissed}</span>
-            <button onClick={() => restoreDuplicate(selected.id)} style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
-              {t.drawer.undo}
-            </button>
-          </div>
-        )}
-
-        {/* Company Types — a company can be more than one thing (e.g. a carrier that also
-            runs warehouse services), so this is a chip list like Trailer Types/Capability
-            Tags rather than the old single-select. */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.companyTypes}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {(selected.types.length ? selected.types : [selected.type]).map((tp) => (
-              <span key={tp} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {trTag(tp)}
-                {selected.types.length > 1 && (
-                  <button
-                    onClick={() => removeCompanyType(tp)}
-                    title={`${t.drawer.remove} ${trTag(tp)}`}
-                    aria-label={`${t.drawer.remove} ${trTag(tp)}`}
-                    style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
-                  >
-                    ✕
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-          {availableCompanyTypeChoices.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-              <select
-                value={draft.companyTypeChoice}
-                onChange={(e) => setDraft({ companyTypeChoice: e.target.value })}
-                style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
-              >
-                <option value="">{t.drawer.addCompanyTypePlaceholder}</option>
-                {availableCompanyTypeChoices.map((ct) => (
-                  <option key={ct} value={ct}>
-                    {trTag(ct)}
-                  </option>
-                ))}
-              </select>
-              <button onClick={addCompanyType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-                {t.drawer.add}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Projects — same chip-list + dropdown-and-Add idiom as Company Types/Trailer
-            Types above; the small project list makes a dropdown fine here, unlike
-            ProjectDrawer.tsx's Companies section which needs a text-search picker instead. */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.projects}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {projects
-              .filter((p) => selectedProjectIds.has(p.id))
-              .map((p) => (
-                <span key={p.id} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {p.name}
-                  <button
-                    onClick={() => removeCompanyFromSelectedProject(p.id)}
-                    title={`${t.drawer.remove} ${p.name}`}
-                    aria-label={`${t.drawer.remove} ${p.name}`}
-                    style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            {selectedProjectIds.size === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noProjectsAssigned}</span>}
-          </div>
-          {projects.filter((p) => !selectedProjectIds.has(p.id)).length > 0 && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-              <select
-                value={draft.projectChoice}
-                onChange={(e) => setDraft({ projectChoice: e.target.value })}
-                style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
-              >
-                <option value="">{t.drawer.addProjectPlaceholder}</option>
-                {projects
-                  .filter((p) => !selectedProjectIds.has(p.id))
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-              </select>
-              <button onClick={addCompanyToSelectedProject} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-                {t.drawer.add}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Details */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t.drawer.details}</span>
-            {!editingDetails && (
-              <button onClick={startEditDetails} style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                {t.drawer.edit}
+            {!isManager && <div style={{ fontSize: 11, color: '#b45309', marginTop: 6 }}>{t.drawer.managerOnlyScore}</div>}
+            {isManager && (
+              <button onClick={saveStrength} style={{ ...primaryButtonStyle, marginTop: 8 }}>
+                {t.drawer.saveScore}
               </button>
             )}
           </div>
 
-          {!editingDetails ? (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
-                <Field
-                  label={t.drawer.address}
-                  value={[selected.city, selected.region, selected.country].filter(Boolean).join(', ') || t.drawer.notRecorded}
-                  span2
-                />
-                <Field label={t.drawer.region} value={selected.region || t.drawer.notRecorded} />
-                <Field label={t.drawer.coordinates} value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
-                <Field label={t.drawer.lastUpdated} value={formatDateTime(selected.updated_at, dateLocale)} />
-                <Field
-                  label={t.drawer.website}
-                  value={selected.website || t.drawer.dash}
-                  href={selected.website ? normalizeUrl(selected.website) : undefined}
-                />
-                <Field label={t.drawer.phone} value={selected.phone || t.drawer.dash} />
-                <Field label={t.drawer.email} value={selected.email || t.drawer.dash} span2 />
+          {/* Duplicate warning / dismissed notice */}
+          {selected.isDuplicate && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#991b1b' }}>{t.drawer.possibleDuplicateOf(selected.duplicateMatches.length)}</span>
+                <button onClick={() => dismissDuplicate(selected.id)} style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
+                  {t.drawer.notADuplicate}
+                </button>
               </div>
-              <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginTop: 12 }}>{selected.description}</p>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
-                {t.drawer.sourcePrefix}
-                {selected.source} ·{' '}
-                {selected.source_url ? (
-                  <a href={selected.source_url} target="_blank" rel="noopener noreferrer">
-                    {t.drawer.viewSource}
-                  </a>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {selected.duplicateMatches.map((dup) => (
+                  <div key={dup.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <DuplicateLink id={dup.id} name={dup.name} />
+                    <button
+                      onClick={() => mergeCompaniesAction(selected.id, dup.id)}
+                      title={t.drawer.mergeIntoThis(dup.name)}
+                      style={{ border: 'none', background: 'none', color: '#991b1b', fontSize: 11, fontWeight: 600, textDecoration: 'underline', cursor: 'pointer', padding: 0, flex: '0 0 auto' }}
+                    >
+                      {t.drawer.merge}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {selected.duplicate_dismissed && selected.hasDuplicateMatch && (
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: '#64748b' }}>{t.drawer.duplicateFlagDismissed}</span>
+              <button onClick={() => restoreDuplicate(selected.id)} style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
+                {t.drawer.undo}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Tabs — Details/Rates/NDA/Other info, clickable to switch which section renders
+            below. Strength Score and the duplicate banner above stay visible regardless. */}
+        <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e2e8f0', padding: '16px 20px 0', marginTop: 6 }}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                border: 'none',
+                background: 'none',
+                padding: '8px 12px 10px',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                color: activeTab === tab.key ? '#0f172a' : '#94a3b8',
+                borderBottom: activeTab === tab.key ? '2px solid #0f172a' : '2px solid transparent',
+                marginBottom: -1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {tab.label}
+              {tab.key === 'nda' && selected.nda_received && (
+                <span title={t.drawer.ndaReceivedHint} style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 22 }}>
+          {activeTab === 'details' && (
+            <>
+              {/* Company Types — a company can be more than one thing (e.g. a carrier that also
+                  runs warehouse services), so this is a chip list like Trailer Types/Capability
+                  Tags rather than the old single-select. */}
+              <div>
+                <div style={sectionHeaderStyle}>{t.drawer.companyTypes}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(selected.types.length ? selected.types : [selected.type]).map((tp) => (
+                    <span key={tp} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {trTag(tp)}
+                      {selected.types.length > 1 && (
+                        <button
+                          onClick={() => removeCompanyType(tp)}
+                          title={`${t.drawer.remove} ${trTag(tp)}`}
+                          aria-label={`${t.drawer.remove} ${trTag(tp)}`}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                {availableCompanyTypeChoices.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                    <select
+                      value={draft.companyTypeChoice}
+                      onChange={(e) => setDraft({ companyTypeChoice: e.target.value })}
+                      style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
+                    >
+                      <option value="">{t.drawer.addCompanyTypePlaceholder}</option>
+                      {availableCompanyTypeChoices.map((ct) => (
+                        <option key={ct} value={ct}>
+                          {trTag(ct)}
+                        </option>
+                      ))}
+                    </select>
+                    <button onClick={addCompanyType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                      {t.drawer.add}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Details */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t.drawer.details}</span>
+                  {!editingDetails && (
+                    <button onClick={startEditDetails} style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                      {t.drawer.edit}
+                    </button>
+                  )}
+                </div>
+
+                {!editingDetails ? (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
+                      <Field
+                        label={t.drawer.address}
+                        value={[selected.city, selected.country].filter(Boolean).join(', ') || t.drawer.notRecorded}
+                        span2
+                      />
+                      <Field label={t.drawer.coordinates} value={`${selected.lat.toFixed(3)}, ${selected.lng.toFixed(3)}`} />
+                      <Field label={t.drawer.lastUpdated} value={formatDateTime(selected.updated_at, dateLocale)} />
+                      <Field
+                        label={t.drawer.website}
+                        value={selected.website || t.drawer.dash}
+                        href={selected.website ? normalizeUrl(selected.website) : undefined}
+                      />
+                      <Field label={t.drawer.phone} value={selected.phone || t.drawer.dash} />
+                      <Field label={t.drawer.email} value={selected.email || t.drawer.dash} span2 />
+                    </div>
+                    <p style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginTop: 12 }}>{selected.description}</p>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+                      {t.drawer.sourcePrefix}
+                      {selected.source} ·{' '}
+                      {selected.source_url ? (
+                        <a href={selected.source_url} target="_blank" rel="noopener noreferrer">
+                          {t.drawer.viewSource}
+                        </a>
+                      ) : (
+                        t.drawer.notApplicable
+                      )}
+                    </div>
+                  </>
                 ) : (
-                  t.drawer.notApplicable
+                  editDraft && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                      <LabeledInput label={t.drawer.name} value={editDraft.name} onChange={(v) => setEditField('name', v)} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.searchAddressLabel}</span>
+                          <LocationAutocomplete
+                            value={addressSearchText}
+                            onChange={setAddressSearchText}
+                            onSelect={(s) => {
+                              setEditField('lat', String(s.lat));
+                              setEditField('lng', String(s.lng));
+                              if (s.countryCode) setEditField('country', countryNameFromCode(s.countryCode));
+                            }}
+                            placeholder={t.drawer.searchAddressPlaceholder}
+                            inputStyle={editInputStyle}
+                          />
+                        </label>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                          {t.drawer.currentlyPinnedAt(
+                            Number.isFinite(parseFloat(editDraft.lat)) ? parseFloat(editDraft.lat) : selected.lat,
+                            Number.isFinite(parseFloat(editDraft.lng)) ? parseFloat(editDraft.lng) : selected.lng,
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowAdvancedCoords((v) => !v)}
+                          style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left', width: 'fit-content' }}
+                        >
+                          {showAdvancedCoords ? t.drawer.hideAdvancedCoordinates : t.drawer.advancedEditCoordinates}
+                        </button>
+                        {showAdvancedCoords && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <LabeledInput label={t.drawer.latitude} value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />
+                            <LabeledInput label={t.drawer.longitude} value={editDraft.lng} onChange={(v) => setEditField('lng', v)} />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.type}</span>
+                          <select value={editDraft.type} onChange={(e) => setEditField('type', e.target.value as CompanyType)} style={editInputStyle}>
+                            <option value="carrier">{t.companyTypes.carrier}</option>
+                            <option value="manufacturer">{t.companyTypes.manufacturer}</option>
+                            <option value="port">{t.companyTypes.port}</option>
+                            <option value="warehouse">{t.companyTypes.warehouse}</option>
+                          </select>
+                        </label>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.country}</span>
+                          <select value={editDraft.country} onChange={(e) => setEditField('country', e.target.value)} style={editInputStyle}>
+                            <option value="">{t.drawer.selectCountryPlaceholder}</option>
+                            {COUNTRY_OPTIONS.map((o) => (
+                              <option key={o.code} value={o.name}>
+                                {flagEmoji(o.code)} {o.name}
+                              </option>
+                            ))}
+                            {NON_COUNTRY_OPTIONS.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <LabeledInput label={t.drawer.city} value={editDraft.city} onChange={(v) => setEditField('city', v)} />
+                        <LabeledInput label={t.drawer.website} value={editDraft.website} onChange={(v) => setEditField('website', v)} />
+                        <LabeledInput label={t.drawer.phone} value={editDraft.phone} onChange={(v) => setEditField('phone', v)} />
+                      </div>
+                      <LabeledInput label={t.drawer.email} value={editDraft.email} onChange={(v) => setEditField('email', v)} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155' }}>
+                        <input type="checkbox" checked={editDraft.pending_review} onChange={() => setEditField('pending_review', !editDraft.pending_review)} />
+                        {t.drawer.pendingReview}
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.description}</span>
+                        <textarea
+                          value={editDraft.description}
+                          onChange={(e) => setEditField('description', e.target.value)}
+                          style={{ ...editInputStyle, minHeight: 60, resize: 'vertical' }}
+                        />
+                      </label>
+                      {editError && <div style={{ fontSize: 12, color: '#b91c1c' }}>{editError}</div>}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button onClick={saveEditDetails} style={primaryButtonStyle}>
+                          {t.drawer.save}
+                        </button>
+                        <button onClick={cancelEditDetails} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
+                          {t.drawer.cancel}
+                        </button>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </>
-          ) : (
-            editDraft && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-                <LabeledInput label={t.drawer.name} value={editDraft.name} onChange={(v) => setEditField('name', v)} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.searchAddressLabel}</span>
-                    <LocationAutocomplete
-                      value={addressSearchText}
-                      onChange={setAddressSearchText}
-                      onSelect={(s) => {
-                        setEditField('lat', String(s.lat));
-                        setEditField('lng', String(s.lng));
-                        if (s.countryCode) setEditField('country', countryNameFromCode(s.countryCode));
-                      }}
-                      placeholder={t.drawer.searchAddressPlaceholder}
-                      inputStyle={editInputStyle}
-                    />
-                  </label>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                    {t.drawer.currentlyPinnedAt(
-                      Number.isFinite(parseFloat(editDraft.lat)) ? parseFloat(editDraft.lat) : selected.lat,
-                      Number.isFinite(parseFloat(editDraft.lng)) ? parseFloat(editDraft.lng) : selected.lng,
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedCoords((v) => !v)}
-                    style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0, textAlign: 'left', width: 'fit-content' }}
-                  >
-                    {showAdvancedCoords ? t.drawer.hideAdvancedCoordinates : t.drawer.advancedEditCoordinates}
-                  </button>
-                  {showAdvancedCoords && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <LabeledInput label={t.drawer.latitude} value={editDraft.lat} onChange={(v) => setEditField('lat', v)} />
-                      <LabeledInput label={t.drawer.longitude} value={editDraft.lng} onChange={(v) => setEditField('lng', v)} />
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.type}</span>
-                    <select value={editDraft.type} onChange={(e) => setEditField('type', e.target.value as CompanyType)} style={editInputStyle}>
-                      <option value="carrier">{t.companyTypes.carrier}</option>
-                      <option value="manufacturer">{t.companyTypes.manufacturer}</option>
-                      <option value="port">{t.companyTypes.port}</option>
-                      <option value="warehouse">{t.companyTypes.warehouse}</option>
-                    </select>
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.country}</span>
-                    <select value={editDraft.country} onChange={(e) => setEditField('country', e.target.value)} style={editInputStyle}>
-                      <option value="">{t.drawer.selectCountryPlaceholder}</option>
-                      {COUNTRY_OPTIONS.map((o) => (
-                        <option key={o.code} value={o.name}>
-                          {flagEmoji(o.code)} {o.name}
-                        </option>
-                      ))}
-                      {NON_COUNTRY_OPTIONS.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <LabeledInput label={t.drawer.region} value={editDraft.region} onChange={(v) => setEditField('region', v)} />
-                  <LabeledInput label={t.drawer.city} value={editDraft.city} onChange={(v) => setEditField('city', v)} />
-                  <LabeledInput label={t.drawer.website} value={editDraft.website} onChange={(v) => setEditField('website', v)} />
-                  <LabeledInput label={t.drawer.phone} value={editDraft.phone} onChange={(v) => setEditField('phone', v)} />
-                </div>
-                <LabeledInput label={t.drawer.email} value={editDraft.email} onChange={(v) => setEditField('email', v)} />
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155' }}>
-                  <input type="checkbox" checked={editDraft.pending_review} onChange={() => setEditField('pending_review', !editDraft.pending_review)} />
-                  {t.drawer.pendingReview}
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.description}</span>
-                  <textarea
-                    value={editDraft.description}
-                    onChange={(e) => setEditField('description', e.target.value)}
-                    style={{ ...editInputStyle, minHeight: 60, resize: 'vertical' }}
-                  />
-                </label>
-                {editError && <div style={{ fontSize: 12, color: '#b91c1c' }}>{editError}</div>}
-                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  <button onClick={saveEditDetails} style={primaryButtonStyle}>
-                    {t.drawer.save}
-                  </button>
-                  <button onClick={cancelEditDetails} style={{ background: 'none', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}>
-                    {t.drawer.cancel}
-                  </button>
-                </div>
-              </div>
-            )
           )}
-        </div>
 
-        {/* Trailer Types — lives right after Details/MULDA, per how staff actually look this up */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.trailerTypes}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {selected.trailer_types.map((type) => (
-              <span key={type} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {translateOption(type, locale)}
-                <button
-                  onClick={() => removeTrailerType(type)}
-                  title={`${t.drawer.remove} ${translateOption(type, locale)}`}
-                  aria-label={`${t.drawer.remove} ${translateOption(type, locale)}`}
-                  style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-            {selected.trailer_types.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noneOnFile}</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <select
-              value={draft.trailerTypeChoice}
-              onChange={(e) => setDraft({ trailerTypeChoice: e.target.value })}
-              style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
-            >
-              <option value="">{t.drawer.addTrailerTypePlaceholder}</option>
-              {availableTrailerTypeChoices.map((tt) => (
-                <option key={tt} value={tt}>
-                  {translateOption(tt, locale)}
-                </option>
-              ))}
-            </select>
-            <button onClick={addTrailerType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-              {t.drawer.add}
-            </button>
-          </div>
-        </div>
-
-        {/* Capability Tags */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.capabilityTags}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {selected.capability_tags.map((tag) => (
-              <span key={tag} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {trTag(tag)}
-                <button
-                  onClick={() => removeTag(tag)}
-                  title={`${t.drawer.remove} ${trTag(tag)}`}
-                  aria-label={`${t.drawer.remove} ${trTag(tag)}`}
-                  style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <select value={draft.tagChoice} onChange={(e) => setDraft({ tagChoice: e.target.value })} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}>
-              <option value="">{t.drawer.addCapabilityPlaceholder}</option>
-              {availableTagChoices.map((c) => (
-                <option key={c} value={c}>
-                  {trTag(c)}
-                </option>
-              ))}
-            </select>
-            <button onClick={addTag} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-              {t.drawer.add}
-            </button>
-          </div>
-        </div>
-
-        {/* Countries Served — structured field for the list's flags column, falling back to
-            a free-text lane-code parse (see lib/lane-codes.ts) for companies not tagged here. */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.countriesServed}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {selected.countries_served.map((code) => (
-              <span key={code} title={countryNameFromCode(code)} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <FlagIcon code={code} />
-                {code}
-                <button
-                  onClick={() => removeCountryServed(code)}
-                  title={`${t.drawer.remove} ${code}`}
-                  aria-label={`${t.drawer.remove} ${code}`}
-                  style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-            {selected.countries_served.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noneOnFile}</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <select
-              value={draft.countryChoice}
-              onChange={(e) => setDraft({ countryChoice: e.target.value })}
-              style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
-            >
-              <option value="">{t.drawer.addCountryPlaceholder}</option>
-              {availableCountryChoices.map((code) => (
-                <option key={code} value={code}>
-                  {code} — {countryNameFromCode(code)}
-                </option>
-              ))}
-            </select>
-            <button onClick={addCountryServed} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-              {t.drawer.add}
-            </button>
-          </div>
-        </div>
-
-        {/* Activity Log */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.activityLog}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 12 }}>
-            <select
-              value={draft.activityType}
-              onChange={(e) => setDraft({ activityType: e.target.value as ActivityType })}
-              style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12, marginBottom: 6 }}
-            >
-              <option value="Call">{t.activityTypes.Call}</option>
-              <option value="Email">{t.activityTypes.Email}</option>
-              <option value="Meeting">{t.activityTypes.Meeting}</option>
-              <option value="Note">{t.activityTypes.Note}</option>
-            </select>
-            <textarea
-              value={draft.activityNote}
-              onChange={(e) => setDraft({ activityNote: e.target.value })}
-              placeholder={t.drawer.logPlaceholder}
-              style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, fontSize: 13, minHeight: 50, resize: 'vertical' }}
-            />
-            <button onClick={addActivity} style={{ alignSelf: 'flex-start', marginTop: 6, background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
-              {t.drawer.addEntry}
-            </button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {activityLoading ? (
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
-            ) : (
-              <>
-                {activityLog.map((entry) => (
-                  <div key={entry.id} style={{ display: 'flex', gap: 10 }}>
-                    <span
-                      style={{
-                        background: `${activityTypeColor(entry.type)}1a`,
-                        color: activityTypeColor(entry.type),
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: '2px 7px',
-                        borderRadius: 5,
-                        height: 'fit-content',
-                      }}
-                    >
-                      {t.activityTypes[entry.type]}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                        {formatDate(entry.entry_date, dateLocale)}
-                        {t.drawer.dateAuthorSep}
-                        {entry.author}
-                      </div>
-                      <div style={{ fontSize: 13, color: '#334155', marginTop: 2 }}>{entry.summary}</div>
-                    </div>
-                  </div>
-                ))}
-                {activityLog.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noActivityYet}</div>}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Rates Received — past quotes for a specific lane, so staff have them on hand
-            next time a similar route comes up. */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>{t.drawer.ratesReceived}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <LocationAutocomplete
-                value={draft.rateOrigin}
-                onChange={(text) => setDraft({ rateOrigin: text, rateOriginCountryCode: null })}
-                onSelect={(s) => setDraft({ rateOriginCountryCode: s.countryCode })}
-                placeholder={t.drawer.originPlaceholder}
-                inputStyle={editInputStyle}
-              />
-              <LocationAutocomplete
-                value={draft.rateDestination}
-                onChange={(text) => setDraft({ rateDestination: text, rateDestinationCountryCode: null })}
-                onSelect={(s) => setDraft({ rateDestinationCountryCode: s.countryCode })}
-                placeholder={t.drawer.destinationPlaceholder}
-                inputStyle={editInputStyle}
-              />
-            </div>
-
-            {/* 1. Transport Mode — top-level filter; nothing below appears until this is set. */}
+          {activeTab === 'rates' && (
             <div>
-              <div style={rateSectionLabelStyle}>{t.drawer.transportMode}</div>
-              <select
-                value={draft.rateTransportMode}
-                onChange={(e) =>
-                  setDraft({
-                    rateTransportMode: e.target.value,
-                    rateLoadType: '',
-                    rateContainerType: '',
-                    rateVehicleType: '',
-                    rateCapacity: '',
-                    rateServiceType: '',
-                  })
-                }
-                style={editInputStyle}
-              >
-                <option value="">{t.drawer.selectTransportMode}</option>
-                {TRANSPORT_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {translateOption(m, locale)}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Rates Received — past quotes for a specific lane, so staff have them on hand
+                  next time a similar route comes up. */}
+              <div style={sectionHeaderStyle}>{t.drawer.ratesReceived}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <LocationAutocomplete
+                    value={draft.rateOrigin}
+                    onChange={(text) => setDraft({ rateOrigin: text, rateOriginCountryCode: null })}
+                    onSelect={(s) => setDraft({ rateOriginCountryCode: s.countryCode })}
+                    placeholder={t.drawer.originPlaceholder}
+                    inputStyle={editInputStyle}
+                  />
+                  <LocationAutocomplete
+                    value={draft.rateDestination}
+                    onChange={(text) => setDraft({ rateDestination: text, rateDestinationCountryCode: null })}
+                    onSelect={(s) => setDraft({ rateDestinationCountryCode: s.countryCode })}
+                    placeholder={t.drawer.destinationPlaceholder}
+                    inputStyle={editInputStyle}
+                  />
+                </div>
 
-            {draft.rateTransportMode && (
-              <>
-                {/* 2. Cargo & Equipment Specification — depends on transport mode. */}
-                {(draft.rateTransportMode === 'Ocean Freight' || draft.rateTransportMode === 'Rail / Multimodal') && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <div>
-                      <div style={rateSectionLabelStyle}>{t.drawer.loadType}</div>
-                      <select value={draft.rateLoadType} onChange={(e) => setDraft({ rateLoadType: e.target.value })} style={editInputStyle}>
-                        <option value="">{t.drawer.selectLoadType}</option>
-                        {LOAD_TYPES.map((lt) => (
-                          <option key={lt} value={lt}>
-                            {translateOption(lt, locale)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <div style={rateSectionLabelStyle}>{t.drawer.containerType}</div>
-                      <OtherableSelect
-                        value={draft.rateContainerType}
-                        options={CONTAINER_TYPES}
-                        placeholder={t.drawer.selectContainerType}
-                        onChange={(v) => setDraft({ rateContainerType: v })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {draft.rateTransportMode === 'Road Freight' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    <div>
-                      <div style={rateSectionLabelStyle}>{t.drawer.vehicleType}</div>
-                      <select value={draft.rateVehicleType} onChange={(e) => setDraft({ rateVehicleType: e.target.value })} style={editInputStyle}>
-                        <option value="">{t.drawer.selectVehicleType}</option>
-                        {ROAD_VEHICLE_TYPES.map((vt) => (
-                          <option key={vt} value={vt}>
-                            {translateOption(vt, locale)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <div style={rateSectionLabelStyle}>{t.drawer.capacity}</div>
-                      <OtherableSelect
-                        value={draft.rateCapacity}
-                        options={ROAD_CAPACITIES}
-                        placeholder={t.drawer.selectCapacity}
-                        onChange={(v) => setDraft({ rateCapacity: v })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Cargo Type & Handling Requirements. */}
+                {/* 1. Transport Mode — top-level filter; nothing below appears until this is set. */}
                 <div>
-                  <div style={rateSectionLabelStyle}>{t.drawer.cargoTypeHandling}</div>
+                  <div style={rateSectionLabelStyle}>{t.drawer.transportMode}</div>
                   <select
-                    value={draft.rateCargoType}
-                    onChange={(e) => {
-                      const cargoType = e.target.value;
-                      setDraft({ rateCargoType: cargoType, rateHazmatClass: cargoType === 'ADR / Hazmat' ? draft.rateHazmatClass : '' });
-                    }}
+                    value={draft.rateTransportMode}
+                    onChange={(e) =>
+                      setDraft({
+                        rateTransportMode: e.target.value,
+                        rateLoadType: '',
+                        rateContainerType: '',
+                        rateVehicleType: '',
+                        rateCapacity: '',
+                        rateServiceType: '',
+                      })
+                    }
                     style={editInputStyle}
                   >
-                    <option value="">{t.drawer.selectCargoType}</option>
-                    <optgroup label={t.drawer.specialCargo}>
-                      {SPECIAL_CARGO_TYPES.map((ct) => (
-                        <option key={ct} value={ct}>
-                          {translateOption(ct, locale)}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label={t.drawer.generalCargo}>
-                      {GENERAL_CARGO_TYPES.map((ct) => (
-                        <option key={ct} value={ct}>
-                          {translateOption(ct, locale)}
-                        </option>
-                      ))}
-                    </optgroup>
+                    <option value="">{t.drawer.selectTransportMode}</option>
+                    {TRANSPORT_MODES.map((m) => (
+                      <option key={m} value={m}>
+                        {translateOption(m, locale)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {draft.rateCargoType === 'ADR / Hazmat' && (
-                  <div>
-                    <div style={rateSectionLabelStyle}>{t.drawer.hazmatClass}</div>
-                    <select value={draft.rateHazmatClass} onChange={(e) => setDraft({ rateHazmatClass: e.target.value })} style={editInputStyle}>
-                      <option value="">{t.drawer.selectHazmatClass}</option>
-                      {HAZMAT_CLASSES.map((hc) => (
-                        <option key={hc} value={hc}>
-                          {translateOption(hc, locale)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {draft.rateTransportMode && (
+                  <>
+                    {/* 2. Cargo & Equipment Specification — depends on transport mode. */}
+                    {(draft.rateTransportMode === 'Ocean Freight' || draft.rateTransportMode === 'Rail / Multimodal') && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        <div>
+                          <div style={rateSectionLabelStyle}>{t.drawer.loadType}</div>
+                          <select value={draft.rateLoadType} onChange={(e) => setDraft({ rateLoadType: e.target.value })} style={editInputStyle}>
+                            <option value="">{t.drawer.selectLoadType}</option>
+                            {LOAD_TYPES.map((lt) => (
+                              <option key={lt} value={lt}>
+                                {translateOption(lt, locale)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <div style={rateSectionLabelStyle}>{t.drawer.containerType}</div>
+                          <OtherableSelect
+                            value={draft.rateContainerType}
+                            options={CONTAINER_TYPES}
+                            placeholder={t.drawer.selectContainerType}
+                            onChange={(v) => setDraft({ rateContainerType: v })}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                {/* 4. Service Type & Operational Scope. */}
-                <div style={{ display: 'grid', gridTemplateColumns: draft.rateTransportMode === 'Road Freight' ? '1fr 1fr' : '1fr', gap: 6 }}>
-                  {draft.rateTransportMode === 'Road Freight' && (
+                    {draft.rateTransportMode === 'Road Freight' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        <div>
+                          <div style={rateSectionLabelStyle}>{t.drawer.vehicleType}</div>
+                          <select value={draft.rateVehicleType} onChange={(e) => setDraft({ rateVehicleType: e.target.value })} style={editInputStyle}>
+                            <option value="">{t.drawer.selectVehicleType}</option>
+                            {ROAD_VEHICLE_TYPES.map((vt) => (
+                              <option key={vt} value={vt}>
+                                {translateOption(vt, locale)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <div style={rateSectionLabelStyle}>{t.drawer.capacity}</div>
+                          <OtherableSelect
+                            value={draft.rateCapacity}
+                            options={ROAD_CAPACITIES}
+                            placeholder={t.drawer.selectCapacity}
+                            onChange={(v) => setDraft({ rateCapacity: v })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Cargo Type & Handling Requirements. */}
                     <div>
-                      <div style={rateSectionLabelStyle}>{t.drawer.roadFleetType}</div>
-                      <select value={draft.rateServiceType} onChange={(e) => setDraft({ rateServiceType: e.target.value })} style={editInputStyle}>
-                        <option value="">{t.drawer.selectFleetType}</option>
-                        {ROAD_SERVICE_TYPES.map((st) => (
-                          <option key={st} value={st}>
-                            {translateOption(st, locale)}
-                          </option>
-                        ))}
+                      <div style={rateSectionLabelStyle}>{t.drawer.cargoTypeHandling}</div>
+                      <select
+                        value={draft.rateCargoType}
+                        onChange={(e) => {
+                          const cargoType = e.target.value;
+                          setDraft({ rateCargoType: cargoType, rateHazmatClass: cargoType === 'ADR / Hazmat' ? draft.rateHazmatClass : '' });
+                        }}
+                        style={editInputStyle}
+                      >
+                        <option value="">{t.drawer.selectCargoType}</option>
+                        <optgroup label={t.drawer.specialCargo}>
+                          {SPECIAL_CARGO_TYPES.map((ct) => (
+                            <option key={ct} value={ct}>
+                              {translateOption(ct, locale)}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label={t.drawer.generalCargo}>
+                          {GENERAL_CARGO_TYPES.map((ct) => (
+                            <option key={ct} value={ct}>
+                              {translateOption(ct, locale)}
+                            </option>
+                          ))}
+                        </optgroup>
                       </select>
                     </div>
-                  )}
-                  <div>
-                    <div style={rateSectionLabelStyle}>{t.drawer.deliveryScope}</div>
-                    <select value={draft.rateDeliveryScope} onChange={(e) => setDraft({ rateDeliveryScope: e.target.value })} style={editInputStyle}>
-                      <option value="">{t.drawer.selectDeliveryScope}</option>
-                      {DELIVERY_SCOPES.map((ds) => (
-                        <option key={ds} value={ds}>
-                          {translateOption(ds, locale)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </>
-            )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <input
-                type="number"
-                value={draft.rateAmount}
-                onChange={(e) => setDraft({ rateAmount: e.target.value })}
-                placeholder={t.drawer.ratePlaceholder}
-                style={editInputStyle}
-              />
-              <input
-                type="text"
-                value={draft.rateDemFt}
-                onChange={(e) => setDraft({ rateDemFt: e.target.value })}
-                placeholder={t.drawer.demFtPlaceholder}
-                style={editInputStyle}
-              />
-            </div>
-            <div>
-              <div style={rateSectionLabelStyle}>{t.drawer.expiresAt}</div>
-              <input
-                type="date"
-                value={draft.rateExpiresAt}
-                onChange={(e) => setDraft({ rateExpiresAt: e.target.value })}
-                style={editInputStyle}
-              />
-            </div>
-            <textarea
-              value={draft.rateNotes}
-              onChange={(e) => setDraft({ rateNotes: e.target.value })}
-              placeholder={t.drawer.notesPlaceholder}
-              style={{ ...editInputStyle, minHeight: 44, resize: 'vertical' }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={editingRateId ? saveRateQuoteEdit : addRateQuote}
-                disabled={!draft.rateOrigin.trim() || !draft.rateDestination.trim()}
-                style={{
-                  alignSelf: 'flex-start',
-                  background: '#0f172a',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '7px 12px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  opacity: !draft.rateOrigin.trim() || !draft.rateDestination.trim() ? 0.5 : 1,
-                }}
-              >
-                {editingRateId ? t.drawer.saveRate : t.drawer.addRate}
-              </button>
-              {editingRateId && (
-                <button
-                  onClick={cancelEditRateQuote}
-                  style={{ alignSelf: 'flex-start', border: '1px solid #cbd5e1', background: 'none', color: '#64748b', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}
-                >
-                  {t.drawer.cancelEdit}
-                </button>
-              )}
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {rateQuotesLoading ? (
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
-            ) : (
-              <>
-                {displayRates.map((entry) => {
-                  if (entry.kind === 'project') {
-                    return (
-                      <div key={entry.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            📁 {entry.projectName}
-                            <span style={{ background: '#eff6ff', color: '#1d4ed8', fontSize: 10, padding: '2px 6px', borderRadius: 999, fontWeight: 600 }}>
-                              {t.drawer.fromProjectBadge}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                            <span style={{ fontWeight: 600, color: '#0f172a' }}>€{entry.quotedRate.toLocaleString()}</span>
-                          </div>
-                          {entry.remarks && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{entry.remarks}</div>}
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{formatDate(entry.created_at, dateLocale)}</div>
-                        </div>
+                    {draft.rateCargoType === 'ADR / Hazmat' && (
+                      <div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.hazmatClass}</div>
+                        <select value={draft.rateHazmatClass} onChange={(e) => setDraft({ rateHazmatClass: e.target.value })} style={editInputStyle}>
+                          <option value="">{t.drawer.selectHazmatClass}</option>
+                          {HAZMAT_CLASSES.map((hc) => (
+                            <option key={hc} value={hc}>
+                              {translateOption(hc, locale)}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    );
-                  }
-                  const quote = entry.quote;
-                  const isExpired = !!quote.expires_at && quote.expires_at < todayIso;
-                  const isEditing = editingRateId === quote.id;
-                  return (
-                    <div
-                      key={quote.id}
-                      style={{
-                        display: 'flex',
-                        gap: 10,
-                        borderBottom: '1px solid #f1f5f9',
-                        paddingBottom: 8,
-                        opacity: isExpired && !isEditing ? 0.6 : 1,
-                        background: isEditing ? '#f0fdfa' : undefined,
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          {quote.origin} → {quote.destination}
-                          {isExpired && (
-                            <span style={{ background: '#fef2f2', color: '#b91c1c', fontSize: 10, padding: '2px 6px', borderRadius: 999, fontWeight: 600 }}>
-                              {t.drawer.expiredBadge}
-                            </span>
-                          )}
+                    )}
+
+                    {/* 4. Service Type & Operational Scope. */}
+                    <div style={{ display: 'grid', gridTemplateColumns: draft.rateTransportMode === 'Road Freight' ? '1fr 1fr' : '1fr', gap: 6 }}>
+                      {draft.rateTransportMode === 'Road Freight' && (
+                        <div>
+                          <div style={rateSectionLabelStyle}>{t.drawer.roadFleetType}</div>
+                          <select value={draft.rateServiceType} onChange={(e) => setDraft({ rateServiceType: e.target.value })} style={editInputStyle}>
+                            <option value="">{t.drawer.selectFleetType}</option>
+                            {ROAD_SERVICE_TYPES.map((st) => (
+                              <option key={st} value={st}>
+                                {translateOption(st, locale)}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {quote.rate != null && <span style={{ fontWeight: 600, color: '#0f172a' }}>€{quote.rate.toLocaleString()}</span>}
-                          {quote.transport_mode && <span>{translateOption(quote.transport_mode, locale)}</span>}
-                          {quote.load_type && <span>{translateOption(quote.load_type, locale)}</span>}
-                          {quote.container_type && <span>{translateOption(quote.container_type, locale)}</span>}
-                          {quote.vehicle_type && <span>{translateOption(quote.vehicle_type, locale)}</span>}
-                          {quote.capacity && <span>{translateOption(quote.capacity, locale)}</span>}
-                          {quote.cargo_type && <span>{translateOption(quote.cargo_type, locale)}</span>}
-                          {quote.hazmat_class && <span>{translateOption(quote.hazmat_class, locale)}</span>}
-                          {quote.service_type && <span>{translateOption(quote.service_type, locale)}</span>}
-                          {quote.delivery_scope && <span>{translateOption(quote.delivery_scope, locale)}</span>}
-                          {quote.dem_ft && (
-                            <span>
-                              {t.drawer.demFtPrefix}
-                              {quote.dem_ft}
-                            </span>
-                          )}
-                        </div>
-                        {quote.notes && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{quote.notes}</div>}
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                          {formatDate(quote.created_at, dateLocale)}
-                          {quote.expires_at && ` · ${t.drawer.expiresAt}: ${formatDate(quote.expires_at, dateLocale)}`}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <button
-                          onClick={() => (isEditing ? cancelEditRateQuote() : startEditRateQuote(quote))}
-                          title={isEditing ? t.drawer.cancelEdit : t.drawer.editRate}
-                          aria-label={isEditing ? t.drawer.cancelEdit : t.drawer.editRate}
-                          style={{ border: 'none', background: 'none', color: isEditing ? '#0d9488' : '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          onClick={() => deleteRateQuoteAction(quote.id)}
-                          title={t.drawer.deleteRate}
-                          aria-label={t.drawer.deleteRate}
-                          style={{ border: 'none', background: 'none', color: '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
-                        >
-                          🗑
-                        </button>
+                      )}
+                      <div>
+                        <div style={rateSectionLabelStyle}>{t.drawer.deliveryScope}</div>
+                        <select value={draft.rateDeliveryScope} onChange={(e) => setDraft({ rateDeliveryScope: e.target.value })} style={editInputStyle}>
+                          <option value="">{t.drawer.selectDeliveryScope}</option>
+                          {DELIVERY_SCOPES.map((ds) => (
+                            <option key={ds} value={ds}>
+                              {translateOption(ds, locale)}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
-                  );
-                })}
-                {displayRates.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noRatesYet}</div>}
-              </>
-            )}
-          </div>
+                  </>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <input
+                    type="number"
+                    value={draft.rateAmount}
+                    onChange={(e) => setDraft({ rateAmount: e.target.value })}
+                    placeholder={t.drawer.ratePlaceholder}
+                    style={editInputStyle}
+                  />
+                  <input
+                    type="text"
+                    value={draft.rateDemFt}
+                    onChange={(e) => setDraft({ rateDemFt: e.target.value })}
+                    placeholder={t.drawer.demFtPlaceholder}
+                    style={editInputStyle}
+                  />
+                </div>
+                <div>
+                  <div style={rateSectionLabelStyle}>{t.drawer.expiresAt}</div>
+                  <input
+                    type="date"
+                    value={draft.rateExpiresAt}
+                    onChange={(e) => setDraft({ rateExpiresAt: e.target.value })}
+                    style={editInputStyle}
+                  />
+                </div>
+                <textarea
+                  value={draft.rateNotes}
+                  onChange={(e) => setDraft({ rateNotes: e.target.value })}
+                  placeholder={t.drawer.notesPlaceholder}
+                  style={{ ...editInputStyle, minHeight: 44, resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={editingRateId ? saveRateQuoteEdit : addRateQuote}
+                    disabled={!draft.rateOrigin.trim() || !draft.rateDestination.trim()}
+                    style={{
+                      alignSelf: 'flex-start',
+                      background: '#0f172a',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '7px 12px',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      opacity: !draft.rateOrigin.trim() || !draft.rateDestination.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {editingRateId ? t.drawer.saveRate : t.drawer.addRate}
+                  </button>
+                  {editingRateId && (
+                    <button
+                      onClick={cancelEditRateQuote}
+                      style={{ alignSelf: 'flex-start', border: '1px solid #cbd5e1', background: 'none', color: '#64748b', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}
+                    >
+                      {t.drawer.cancelEdit}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {rateQuotesLoading ? (
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
+                ) : (
+                  <>
+                    {displayRates.map((entry) => {
+                      if (entry.kind === 'project') {
+                        return (
+                          <div key={entry.id} style={{ display: 'flex', gap: 10, borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                📁 {entry.projectName}
+                                <span style={{ background: '#eff6ff', color: '#1d4ed8', fontSize: 10, padding: '2px 6px', borderRadius: 999, fontWeight: 600 }}>
+                                  {t.drawer.fromProjectBadge}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                                <span style={{ fontWeight: 600, color: '#0f172a' }}>€{entry.quotedRate.toLocaleString()}</span>
+                              </div>
+                              {entry.remarks && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{entry.remarks}</div>}
+                              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{formatDate(entry.created_at, dateLocale)}</div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      const quote = entry.quote;
+                      const isExpired = !!quote.expires_at && quote.expires_at < todayIso;
+                      const isEditing = editingRateId === quote.id;
+                      return (
+                        <div
+                          key={quote.id}
+                          style={{
+                            display: 'flex',
+                            gap: 10,
+                            borderBottom: '1px solid #f1f5f9',
+                            paddingBottom: 8,
+                            opacity: isExpired && !isEditing ? 0.6 : 1,
+                            background: isEditing ? '#f0fdfa' : undefined,
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              {quote.origin} → {quote.destination}
+                              {isExpired && (
+                                <span style={{ background: '#fef2f2', color: '#b91c1c', fontSize: 10, padding: '2px 6px', borderRadius: 999, fontWeight: 600 }}>
+                                  {t.drawer.expiredBadge}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                              {quote.rate != null && <span style={{ fontWeight: 600, color: '#0f172a' }}>€{quote.rate.toLocaleString()}</span>}
+                              {quote.transport_mode && <span>{translateOption(quote.transport_mode, locale)}</span>}
+                              {quote.load_type && <span>{translateOption(quote.load_type, locale)}</span>}
+                              {quote.container_type && <span>{translateOption(quote.container_type, locale)}</span>}
+                              {quote.vehicle_type && <span>{translateOption(quote.vehicle_type, locale)}</span>}
+                              {quote.capacity && <span>{translateOption(quote.capacity, locale)}</span>}
+                              {quote.cargo_type && <span>{translateOption(quote.cargo_type, locale)}</span>}
+                              {quote.hazmat_class && <span>{translateOption(quote.hazmat_class, locale)}</span>}
+                              {quote.service_type && <span>{translateOption(quote.service_type, locale)}</span>}
+                              {quote.delivery_scope && <span>{translateOption(quote.delivery_scope, locale)}</span>}
+                              {quote.dem_ft && (
+                                <span>
+                                  {t.drawer.demFtPrefix}
+                                  {quote.dem_ft}
+                                </span>
+                              )}
+                            </div>
+                            {quote.notes && <div style={{ fontSize: 12, color: '#334155', marginTop: 4 }}>{quote.notes}</div>}
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                              {formatDate(quote.created_at, dateLocale)}
+                              {quote.expires_at && ` · ${t.drawer.expiresAt}: ${formatDate(quote.expires_at, dateLocale)}`}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <button
+                              onClick={() => (isEditing ? cancelEditRateQuote() : startEditRateQuote(quote))}
+                              title={isEditing ? t.drawer.cancelEdit : t.drawer.editRate}
+                              aria-label={isEditing ? t.drawer.cancelEdit : t.drawer.editRate}
+                              style={{ border: 'none', background: 'none', color: isEditing ? '#0d9488' : '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={() => deleteRateQuoteAction(quote.id)}
+                              title={t.drawer.deleteRate}
+                              aria-label={t.drawer.deleteRate}
+                              style={{ border: 'none', background: 'none', color: '#cbd5e1', fontSize: 13, cursor: 'pointer', padding: '2px 4px', height: 'fit-content' }}
+                            >
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {displayRates.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noRatesYet}</div>}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'nda' && (
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#334155' }}>
+                <input type="checkbox" checked={draft.ndaReceived} onChange={() => setDraft({ ndaReceived: !draft.ndaReceived })} />
+                {t.drawer.ndaReceivedLabel}
+              </label>
+              {draft.ndaReceived && (
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 10, maxWidth: 220 }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.ndaReceivedDateLabel}</span>
+                  <input type="date" value={draft.ndaReceivedDate} onChange={(e) => setDraft({ ndaReceivedDate: e.target.value })} style={editInputStyle} />
+                </label>
+              )}
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 10 }}>
+                <span style={{ fontSize: 11, color: '#94a3b8' }}>{t.drawer.ndaNotesLabel}</span>
+                <textarea
+                  value={draft.ndaNotes}
+                  onChange={(e) => setDraft({ ndaNotes: e.target.value })}
+                  placeholder={t.drawer.ndaNotesPlaceholder}
+                  style={{ ...editInputStyle, minHeight: 60, resize: 'vertical' }}
+                />
+              </label>
+              <button onClick={saveNda} style={{ ...primaryButtonStyle, marginTop: 10 }}>
+                {t.drawer.save}
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'other' && (
+            <>
+              {/* Projects — same chip-list + dropdown-and-Add idiom as Company Types/Trailer
+                  Types above; the small project list makes a dropdown fine here, unlike
+                  ProjectDrawer.tsx's Companies section which needs a text-search picker instead. */}
+              <div>
+                <div style={sectionHeaderStyle}>{t.drawer.projects}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {projects
+                    .filter((p) => selectedProjectIds.has(p.id))
+                    .map((p) => (
+                      <span key={p.id} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {p.name}
+                        <button
+                          onClick={() => removeCompanyFromSelectedProject(p.id)}
+                          title={`${t.drawer.remove} ${p.name}`}
+                          aria-label={`${t.drawer.remove} ${p.name}`}
+                          style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  {selectedProjectIds.size === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noProjectsAssigned}</span>}
+                </div>
+                {projects.filter((p) => !selectedProjectIds.has(p.id)).length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                    <select
+                      value={draft.projectChoice}
+                      onChange={(e) => setDraft({ projectChoice: e.target.value })}
+                      style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
+                    >
+                      <option value="">{t.drawer.addProjectPlaceholder}</option>
+                      {projects
+                        .filter((p) => !selectedProjectIds.has(p.id))
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                    </select>
+                    <button onClick={addCompanyToSelectedProject} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                      {t.drawer.add}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Trailer Types */}
+              <div>
+                <div style={sectionHeaderStyle}>{t.drawer.trailerTypes}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {selected.trailer_types.map((type) => (
+                    <span key={type} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {translateOption(type, locale)}
+                      <button
+                        onClick={() => removeTrailerType(type)}
+                        title={`${t.drawer.remove} ${translateOption(type, locale)}`}
+                        aria-label={`${t.drawer.remove} ${translateOption(type, locale)}`}
+                        style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  {selected.trailer_types.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noneOnFile}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                  <select
+                    value={draft.trailerTypeChoice}
+                    onChange={(e) => setDraft({ trailerTypeChoice: e.target.value })}
+                    style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
+                  >
+                    <option value="">{t.drawer.addTrailerTypePlaceholder}</option>
+                    {availableTrailerTypeChoices.map((tt) => (
+                      <option key={tt} value={tt}>
+                        {translateOption(tt, locale)}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={addTrailerType} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                    {t.drawer.add}
+                  </button>
+                </div>
+              </div>
+
+              {/* Capability Tags */}
+              <div>
+                <div style={sectionHeaderStyle}>{t.drawer.capabilityTags}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {selected.capability_tags.map((tag) => (
+                    <span key={tag} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {trTag(tag)}
+                      <button
+                        onClick={() => removeTag(tag)}
+                        title={`${t.drawer.remove} ${trTag(tag)}`}
+                        aria-label={`${t.drawer.remove} ${trTag(tag)}`}
+                        style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                  <select value={draft.tagChoice} onChange={(e) => setDraft({ tagChoice: e.target.value })} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}>
+                    <option value="">{t.drawer.addCapabilityPlaceholder}</option>
+                    {availableTagChoices.map((c) => (
+                      <option key={c} value={c}>
+                        {trTag(c)}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={addTag} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                    {t.drawer.add}
+                  </button>
+                </div>
+              </div>
+
+              {/* Countries Served — structured field for the list's flags column, falling back to
+                  a free-text lane-code parse (see lib/lane-codes.ts) for companies not tagged here. */}
+              <div>
+                <div style={sectionHeaderStyle}>{t.drawer.countriesServed}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {selected.countries_served.map((code) => (
+                    <span key={code} title={countryNameFromCode(code)} style={{ background: '#f1f5f9', color: '#334155', fontSize: 12, padding: '5px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <FlagIcon code={code} />
+                      {code}
+                      <button
+                        onClick={() => removeCountryServed(code)}
+                        title={`${t.drawer.remove} ${code}`}
+                        aria-label={`${t.drawer.remove} ${code}`}
+                        style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  {selected.countries_served.length === 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noneOnFile}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                  <select
+                    value={draft.countryChoice}
+                    onChange={(e) => setDraft({ countryChoice: e.target.value })}
+                    style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12 }}
+                  >
+                    <option value="">{t.drawer.addCountryPlaceholder}</option>
+                    {availableCountryChoices.map((code) => (
+                      <option key={code} value={code}>
+                        {code} — {countryNameFromCode(code)}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={addCountryServed} style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                    {t.drawer.add}
+                  </button>
+                </div>
+              </div>
+
+              {/* Activity Log */}
+              <div>
+                <div style={sectionHeaderStyle}>{t.drawer.activityLog}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 12 }}>
+                  <select
+                    value={draft.activityType}
+                    onChange={(e) => setDraft({ activityType: e.target.value as ActivityType })}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 7, fontSize: 12, marginBottom: 6 }}
+                  >
+                    <option value="Call">{t.activityTypes.Call}</option>
+                    <option value="Email">{t.activityTypes.Email}</option>
+                    <option value="Meeting">{t.activityTypes.Meeting}</option>
+                    <option value="Note">{t.activityTypes.Note}</option>
+                  </select>
+                  <textarea
+                    value={draft.activityNote}
+                    onChange={(e) => setDraft({ activityNote: e.target.value })}
+                    placeholder={t.drawer.logPlaceholder}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 8, fontSize: 13, minHeight: 50, resize: 'vertical' }}
+                  />
+                  <button onClick={addActivity} style={{ alignSelf: 'flex-start', marginTop: 6, background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 12, cursor: 'pointer' }}>
+                    {t.drawer.addEntry}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {activityLoading ? (
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.loading}</div>
+                  ) : (
+                    <>
+                      {activityLog.map((entry) => (
+                        <div key={entry.id} style={{ display: 'flex', gap: 10 }}>
+                          <span
+                            style={{
+                              background: `${activityTypeColor(entry.type)}1a`,
+                              color: activityTypeColor(entry.type),
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: '2px 7px',
+                              borderRadius: 5,
+                              height: 'fit-content',
+                            }}
+                          >
+                            {t.activityTypes[entry.type]}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                              {formatDate(entry.entry_date, dateLocale)}
+                              {t.drawer.dateAuthorSep}
+                              {entry.author}
+                            </div>
+                            <div style={{ fontSize: 13, color: '#334155', marginTop: 2 }}>{entry.summary}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {activityLog.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.drawer.noActivityYet}</div>}
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

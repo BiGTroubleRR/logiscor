@@ -39,6 +39,17 @@ create policy "profiles_select_own" on public.profiles
 -- ---------------------------------------------------------------------------
 -- companies — one row per carrier/manufacturer/port/warehouse lead.
 -- Seeded from carriers-data.js (see scripts/seed-companies.mjs).
+--
+-- `create table if not exists` below is a no-op on a database that already has this table —
+-- it documents the CURRENT desired shape (and covers a fresh install) but does NOT migrate an
+-- existing one. For the already-live database, run this once, by hand, in the SQL Editor:
+--
+--   alter table public.companies add column if not exists nda_received boolean not null default false;
+--   alter table public.companies add column if not exists nda_received_date date;
+--   alter table public.companies add column if not exists nda_notes text not null default '';
+--   -- Irreversible — every existing region value is gone once this runs. Only run it once
+--   -- every place that reads `region` has been confirmed gone (the app no longer does).
+--   alter table public.companies drop column if exists region;
 -- ---------------------------------------------------------------------------
 create table if not exists public.companies (
   id text primary key,
@@ -52,7 +63,6 @@ create table if not exists public.companies (
 
   name text not null,
   country text not null default '',
-  region text not null default '',
   city text not null default '',
   lat double precision not null,
   lng double precision not null,
@@ -117,6 +127,13 @@ create table if not exists public.companies (
   -- "CZ-AT-IT-SI"); see the flags column in CompanyTable.tsx and src/lib/lane-codes.ts's
   -- fallback parser for companies that don't have this filled in yet.
   countries_served text[] not null default '{}',
+
+  -- NDA status — see the "NDA" tab in CompanyProfileContent.tsx. nda_received_date/nda_notes
+  -- are only meaningful once nda_received is true, but kept on the row rather than a separate
+  -- table since it's a single fact about the company, not a repeating log.
+  nda_received boolean not null default false,
+  nda_received_date date,
+  nda_notes text not null default '',
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

@@ -14,7 +14,6 @@ export type Company = {
   types: CompanyType[];
   name: string;
   country: string;
-  region: string;
   city: string;
   lat: number;
   lng: number;
@@ -44,6 +43,12 @@ export type Company = {
   // column, falling back to lib/lane-codes.ts's free-text parse where staff haven't filled
   // this in yet (see extractLaneCodes).
   countries_served: string[];
+  // Whether an NDA has been signed with this company — nda_received_date/nda_notes are only
+  // meaningful once this is true, but stay on the row (not a separate table) since it's a
+  // single yes/no fact about the company, not a repeating log like activity_log/rate_quotes.
+  nda_received: boolean;
+  nda_received_date: string | null;
+  nda_notes: string;
   created_at: string;
   updated_at: string;
 };
@@ -103,7 +108,6 @@ export type NewCompanyInput = Pick<
   | 'type'
   | 'name'
   | 'country'
-  | 'region'
   | 'city'
   | 'lat'
   | 'lng'

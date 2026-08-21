@@ -103,6 +103,15 @@ export async function saveCountriesServedApi(id: string, codes: string[]): Promi
   return unwrap<Company>(res, 'company');
 }
 
+export async function saveNdaApi(id: string, received: boolean, receivedDate: string | null, notes: string): Promise<Company> {
+  const res = await fetch('/api/companies/nda', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, received, receivedDate, notes }),
+  });
+  return unwrap<Company>(res, 'company');
+}
+
 export async function saveCompanyTypes(id: string, types: string[]): Promise<Company> {
   const res = await fetch('/api/companies/types', {
     method: 'PATCH',

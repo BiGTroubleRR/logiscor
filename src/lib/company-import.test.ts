@@ -74,7 +74,6 @@ describe('partitionDuplicateRows', () => {
     name,
     type: 'carrier',
     country: '',
-    region: '',
     city: '',
     lat: 0,
     lng: 0,

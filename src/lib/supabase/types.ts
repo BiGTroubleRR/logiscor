@@ -4,7 +4,6 @@ type CompanyRow = {
   types: string[];
   name: string;
   country: string;
-  region: string;
   city: string;
   lat: number;
   lng: number;
@@ -29,6 +28,9 @@ type CompanyRow = {
   deleted_at: string | null;
   hub_of: string | null;
   countries_served: string[];
+  nda_received: boolean;
+  nda_received_date: string | null;
+  nda_notes: string;
   created_at: string;
   updated_at: string;
 };

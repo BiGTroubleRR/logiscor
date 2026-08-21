@@ -5,7 +5,6 @@ export const COLUMNS = [
   'name',
   'type',
   'country',
-  'region',
   'city',
   'lat',
   'lng',

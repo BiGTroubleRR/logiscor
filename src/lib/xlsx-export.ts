@@ -72,7 +72,7 @@ export async function downloadProjectPartnersXlsx(
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Partners');
 
-  const headers = ['Company', 'Type', 'Country', 'Region / City', 'Quoted Rate (€)', 'Remarks', 'Email', 'Phone', 'Website'];
+  const headers = ['Company', 'Type', 'Country', 'City', 'Quoted Rate (€)', 'Remarks', 'Email', 'Phone', 'Website'];
   const colCount = headers.length;
 
   sheet.mergeCells(1, 1, 1, colCount);
@@ -121,7 +121,7 @@ export async function downloadProjectPartnersXlsx(
       c.name,
       c.type,
       c.country,
-      [c.region, c.city].filter(Boolean).join(' / '),
+      c.city,
       link?.quoted_rate ?? null,
       link?.remarks ?? '',
       c.email,
@@ -148,7 +148,7 @@ export async function downloadProjectPartnersXlsx(
     { width: 22 }, // Company
     { width: 14 }, // Type
     { width: 16 }, // Country
-    { width: 20 }, // Region / City
+    { width: 20 }, // City
     { width: 16 }, // Quoted Rate
     { width: 42 }, // Remarks
     { width: 24 }, // Email

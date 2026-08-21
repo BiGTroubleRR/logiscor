@@ -38,7 +38,6 @@ export async function POST() {
       type: 'carrier',
       name: 'New Company',
       country: '',
-      region: '',
       city: '',
       lat: 49.8,
       lng: 16.5,
@@ -58,7 +57,6 @@ type DetailsPatch = {
   name: string;
   type: CompanyType;
   country: string;
-  region: string;
   city: string;
   lat: number;
   lng: number;

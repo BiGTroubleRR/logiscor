@@ -154,10 +154,7 @@ const Row = memo(function Row({ c }: { c: CompanyView }) {
           ))}
         </div>
       </td>
-      <td style={{ ...td, color: '#334155' }}>
-        {c.region || t.table.dash}
-        <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.city}</div>
-      </td>
+      <td style={{ ...td, color: '#334155' }}>{c.city || t.table.dash}</td>
       <td style={td}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {visibleTags.map((tag) => (
@@ -361,7 +358,7 @@ export default function CompanyTable() {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <SortHeader label={t.table.colCompany} sortKey="name" />
                 <SortHeader label={t.table.colType} sortKey="type" />
-                <SortHeader label={t.table.colRegionCity} sortKey="region" />
+                <SortHeader label={t.table.colCity} sortKey="city" />
                 <th style={thStyleNoSort}>{t.table.colCapabilities}</th>
                 <SortHeader label={t.table.colStrength} sortKey="strength_score" />
                 <th style={thStyleNoSort}>{t.table.colTrailerTypes}</th>

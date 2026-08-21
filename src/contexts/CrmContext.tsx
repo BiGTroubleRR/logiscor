@@ -21,7 +21,6 @@ import { useLocale } from './LocaleContext';
 export type FilterState = {
   type: string;
   country: string;
-  region: string;
   capability: string;
   trailerType: string;
   project: string;
@@ -39,7 +38,6 @@ export type FilterState = {
 const DEFAULT_FILTERS: FilterState = {
   type: 'all',
   country: 'all',
-  region: 'all',
   capability: 'all',
   trailerType: 'all',
   project: 'all',
@@ -49,7 +47,7 @@ const DEFAULT_FILTERS: FilterState = {
   search: '',
 };
 
-export type SortKey = 'name' | 'type' | 'country' | 'region' | 'strength_score' | 'distance_km' | 'updated_at';
+export type SortKey = 'name' | 'type' | 'country' | 'city' | 'strength_score' | 'distance_km' | 'updated_at';
 export type SortState = { key: SortKey; dir: 'asc' | 'desc' };
 
 export type RouteState = {
@@ -88,7 +86,6 @@ export type EditDraft = {
   name: string;
   type: CompanyType;
   country: string;
-  region: string;
   city: string;
   lat: string;
   lng: string;
@@ -102,6 +99,9 @@ export type EditDraft = {
 export type DrawerDraft = {
   strength: number;
   rationale: string;
+  ndaReceived: boolean;
+  ndaReceivedDate: string;
+  ndaNotes: string;
   tagChoice: string;
   trailerTypeChoice: string;
   companyTypeChoice: string;
@@ -204,7 +204,6 @@ type CrmContextValue = {
 
   typeOptions: { value: string; label: string }[];
   countryOptions: { value: string; label: string }[];
-  regionOptions: { value: string; label: string }[];
   capabilityOptions: { value: string; label: string }[];
   trailerTypeOptions: { value: string; label: string }[];
   allCapabilities: string[];
@@ -233,6 +232,7 @@ type CrmContextValue = {
   draft: DrawerDraft;
   setDraft: (patch: Partial<DrawerDraft>) => void;
   saveStrength: () => Promise<void>;
+  saveNda: () => Promise<void>;
   addTag: () => Promise<void>;
   removeTag: (tag: string) => Promise<void>;
   addTrailerType: () => Promise<void>;
@@ -305,6 +305,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
   const [draft, setDraftState] = useState<DrawerDraft>({
     strength: 0,
     rationale: '',
+    ndaReceived: false,
+    ndaReceivedDate: '',
+    ndaNotes: '',
     tagChoice: '',
     trailerTypeChoice: '',
     companyTypeChoice: '',
@@ -421,10 +424,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [companies]);
-  const regionOptions = useMemo(
-    () => Array.from(new Set(companies.map((c) => c.region))).filter(Boolean).sort().map((v) => ({ value: v, label: v })),
-    [companies],
-  );
   const capabilityOptions = useMemo(() => allCapabilities.map((t) => ({ value: t, label: t })), [allCapabilities]);
   const trailerTypeOptions = useMemo(() => allTrailerTypes.map((t) => ({ value: t, label: t })), [allTrailerTypes]);
 
@@ -465,7 +464,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       (c) =>
         (filters.type === 'all' || c.types.includes(filters.type as CompanyType)) &&
         (filters.country === 'all' || (resolveCountryCode(c.country) ?? c.country) === filters.country) &&
-        (filters.region === 'all' || c.region === filters.region) &&
         (filters.capability === 'all' || c.capability_tags.includes(filters.capability)) &&
         (filters.trailerType === 'all' || c.trailer_types.includes(filters.trailerType)) &&
         (filters.project === 'all' || companyIdsByProject.get(filters.project)?.has(c.id)) &&
@@ -693,6 +691,9 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       setDraftState({
         strength: c.strength_score ?? 0,
         rationale: c.strength_rationale,
+        ndaReceived: c.nda_received,
+        ndaReceivedDate: c.nda_received_date ?? '',
+        ndaNotes: c.nda_notes,
         tagChoice: '',
         trailerTypeChoice: '',
         companyTypeChoice: '',
@@ -732,6 +733,12 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     const updated = await runMutation(() => api.saveStrengthScore(selectedId, draft.strength, draft.rationale));
     if (updated) patchCompanyLocal(updated);
   }, [selectedId, draft.strength, draft.rationale, runMutation]);
+
+  const saveNda = useCallback(async () => {
+    if (!selectedId) return;
+    const updated = await runMutation(() => api.saveNdaApi(selectedId, draft.ndaReceived, draft.ndaReceivedDate || null, draft.ndaNotes));
+    if (updated) patchCompanyLocal(updated);
+  }, [selectedId, draft.ndaReceived, draft.ndaReceivedDate, draft.ndaNotes, runMutation]);
 
   const addTag = useCallback(async () => {
     if (!selectedId || !draft.tagChoice || !selected) return;
@@ -987,7 +994,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       name: selected.name,
       type: selected.type,
       country: canonicalCountryName(selected.country),
-      region: selected.region,
       city: selected.city,
       lat: String(selected.lat),
       lng: String(selected.lng),
@@ -1025,7 +1031,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       name: editDraft.name.trim(),
       type: editDraft.type,
       country: editDraft.country,
-      region: editDraft.region,
       city: editDraft.city,
       lat,
       lng,
@@ -1066,7 +1071,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       name: created.name,
       type: created.type,
       country: created.country,
-      region: created.region,
       city: created.city,
       lat: String(created.lat),
       lng: String(created.lng),
@@ -1368,7 +1372,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     toggleSort,
     typeOptions,
     countryOptions,
-    regionOptions,
     capabilityOptions,
     trailerTypeOptions,
     allCapabilities,
@@ -1394,6 +1397,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
     draft,
     setDraft,
     saveStrength,
+    saveNda,
     addTag,
     removeTag,
     addTrailerType,
@@ -1473,7 +1477,6 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       toggleSort,
       typeOptions,
       countryOptions,
-      regionOptions,
       capabilityOptions,
       trailerTypeOptions,
       allCapabilities,
@@ -1499,6 +1502,7 @@ export function CrmProvider({ children }: { children: ReactNode }) {
       draft,
       setDraft,
       saveStrength,
+      saveNda,
       addTag,
       removeTag,
       addTrailerType,

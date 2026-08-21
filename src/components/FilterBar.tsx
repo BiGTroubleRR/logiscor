@@ -18,7 +18,6 @@ export default function FilterBar() {
     clearFilters,
     typeOptions,
     countryOptions,
-    regionOptions,
     capabilityOptions,
     trailerTypeOptions,
     projectOptions,
@@ -83,15 +82,6 @@ export default function FilterBar() {
           <option key={o.value} value={o.value}>
             {o.value.length === 2 ? `${flagEmoji(o.value)} ` : ''}
             {translateOption(o.label, locale)}
-          </option>
-        ))}
-      </select>
-
-      <select value={filters.region} onChange={(e) => setFilters({ region: e.target.value })} style={lightSelectStyle}>
-        <option value="all">{t.filterBar.allRegions}</option>
-        {regionOptions.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
           </option>
         ))}
       </select>

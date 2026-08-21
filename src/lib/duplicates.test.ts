@@ -107,7 +107,6 @@ describe('buildMergedCompanyPatch', () => {
     name: string;
     types: string[];
     country: string;
-    region: string;
     city: string;
     website: string;
     email: string;
@@ -122,7 +121,6 @@ describe('buildMergedCompanyPatch', () => {
     name: 'Acme Freight',
     types: ['carrier'],
     country: '',
-    region: '',
     city: '',
     website: '',
     email: '',

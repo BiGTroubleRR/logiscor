@@ -101,7 +101,6 @@ export async function duplicateCompany(original: Company, hubNumber: number): Pr
       type: original.type,
       types: original.types,
       country: original.country,
-      region: original.region,
       city: original.city,
       lat: original.lat,
       lng: original.lng,
@@ -158,6 +157,18 @@ export async function updateCountriesServed(id: string, codes: string[]): Promis
   const { data, error } = await supabase
     .from('companies')
     .update({ countries_served: codes })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as Company;
+}
+
+export async function updateNda(id: string, received: boolean, receivedDate: string | null, notes: string): Promise<Company> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('companies')
+    .update({ nda_received: received, nda_received_date: receivedDate, nda_notes: notes })
     .eq('id', id)
     .select('*')
     .single();

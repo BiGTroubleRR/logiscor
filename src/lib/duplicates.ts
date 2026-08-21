@@ -48,7 +48,6 @@ export function buildMergedCompanyPatch<
     name: string;
     types: string[];
     country: string;
-    region: string;
     city: string;
     website: string;
     email: string;
@@ -67,7 +66,6 @@ export function buildMergedCompanyPatch<
 
   return {
     country: fillBlank(survivor.country, loser.country),
-    region: fillBlank(survivor.region, loser.region),
     city: fillBlank(survivor.city, loser.city),
     website: fillBlank(survivor.website, loser.website),
     email: fillBlank(survivor.email, loser.email),

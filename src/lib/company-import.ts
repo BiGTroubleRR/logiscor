@@ -12,7 +12,6 @@ export const IMPORT_HEADERS = [
   'name',
   'type',
   'country',
-  'region',
   'city',
   'lat',
   'lng',
@@ -31,7 +30,6 @@ export const IMPORT_COLUMN_NOTES: Record<ImportHeader, string> = {
   name: 'Required.',
   type: 'carrier, manufacturer, port, or warehouse. Blank defaults to carrier.',
   country: '',
-  region: '',
   city: '',
   lat: 'Required. Decimal degrees, e.g. 48.137.',
   lng: 'Required. Decimal degrees, e.g. 11.575.',
@@ -51,7 +49,6 @@ const IMPORT_COLUMN_NOTES_CS: Record<ImportHeader, string> = {
   name: 'Povinné.',
   type: 'carrier, manufacturer, port nebo warehouse. Prázdné výchozí na carrier.',
   country: '',
-  region: '',
   city: '',
   lat: 'Povinné. Desetinné stupně, např. 48.137.',
   lng: 'Povinné. Desetinné stupně, např. 11.575.',
@@ -78,7 +75,6 @@ export type ImportedCompanyRow = {
   name: string;
   type: CompanyType;
   country: string;
-  region: string;
   city: string;
   lat: number;
   lng: number;
@@ -136,7 +132,6 @@ export function validateImportRow(raw: Record<string, unknown>, rowNumber: numbe
     name,
     type,
     country: String(raw.country ?? '').trim(),
-    region: String(raw.region ?? '').trim(),
     city: String(raw.city ?? '').trim(),
     lat,
     lng,
